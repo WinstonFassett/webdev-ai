@@ -47,10 +47,12 @@ async function loadHistory() {
     const data = await fetchLogs({ limit: 200 })
     const channels = data?.logs ?? {}
 
+    // Build batch first, then assign once to avoid N reactive mutations
+    const batch: LogEntry[] = []
     for (const [channel, events] of Object.entries(channels)) {
       if (!Array.isArray(events)) continue
       for (const event of events as any[]) {
-        _entries.push({
+        batch.push({
           type: 'log',
           channel: event.channel ?? channel,
           payload: event.payload,
@@ -61,7 +63,10 @@ async function loadHistory() {
       }
     }
 
-    _entries.sort((a, b) => a.timestamp - b.timestamp)
+    if (batch.length > 0) {
+      _entries.push(...batch)
+      _entries.sort((a, b) => a.timestamp - b.timestamp)
+    }
   } catch {
     // History is best-effort
   }
@@ -134,11 +139,12 @@ export async function loadProjectHistory(serverId: string) {
     const channels = data?.logs ?? {}
 
     const existingTs = new Set(_entries.map(e => e.timestamp))
+    const batch: LogEntry[] = []
     for (const [channel, events] of Object.entries(channels)) {
       if (!Array.isArray(events)) continue
       for (const event of events as any[]) {
         if (existingTs.has(event.ts)) continue
-        _entries.push({
+        batch.push({
           type: 'log',
           channel: event.channel ?? channel,
           payload: event.payload,
@@ -147,7 +153,10 @@ export async function loadProjectHistory(serverId: string) {
         })
       }
     }
-    _entries.sort((a, b) => a.timestamp - b.timestamp)
+    if (batch.length > 0) {
+      _entries.push(...batch)
+      _entries.sort((a, b) => a.timestamp - b.timestamp)
+    }
   } catch {
     // History is best-effort
   }

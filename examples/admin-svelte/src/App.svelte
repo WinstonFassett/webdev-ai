@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { initTheme, toggleTheme } from './lib/data/theme'
   import { parseHash, navigate, type Route } from './lib/data/router'
   import { getRegistry, refreshRegistry } from './lib/data/registry.svelte'
   import { onConnectionChange } from './lib/data/gateway'
-  import { startLogging, stopLogging } from './lib/data/logs.svelte'
+  import { startLogging } from './lib/data/logs.svelte'
   import { trackNavigation } from './lib/data/nav-history'
   import SidebarTree from './lib/components/SidebarTree.svelte'
   import ReplPanel from './lib/components/ReplPanel.svelte'
@@ -43,40 +44,43 @@
     })
   })
 
-  // Init: fetch registry + start log stream
-  $effect(() => {
-    refreshRegistry()
-    startLogging()
-    return () => stopLogging()
-  })
+  // Init: fetch registry, then start log stream outside reactive context
+  refreshRegistry()
+  startLogging()
 
-  // Auto-select: prefer deepest leaf available, gateway is last resort
+  // Auto-select: prefer deepest leaf available, gateway is last resort.
+  // Only fires once. Uses untrack for route to prevent navigate → hashchange
+  // → route update → re-trigger cycle.
+  let autoSelected = false
+
   $effect(() => {
-    // Only auto-select when on gateway or initial load
-    if (route.view !== 'gateway' && location.hash && location.hash !== '#/' && location.hash !== '#') return
-    if (registry.projects.length === 0) {
-      // No projects — fall back to gateway
-      if (!location.hash || location.hash === '#/' || location.hash === '#') {
-        location.hash = '#/gateway'
+    const projects = registry.projects
+    if (autoSelected) return
+
+    untrack(() => {
+      const currentHash = location.hash
+      if (route.view !== 'gateway' && currentHash && currentHash !== '#/' && currentHash !== '#') return
+      if (projects.length === 0) {
+        if (!currentHash || currentHash === '#/' || currentHash === '#') {
+          location.hash = '#/gateway'
+        }
+        return
       }
-      return
-    }
 
-    // Pick first project (or only project)
-    const proj = registry.projects[0]
-    const srv = proj.servers[0]
-    if (!srv) {
-      navigate({ view: 'project', projectId: proj.projectId })
-      return
-    }
-
-    // If any browser exists, go to deepest leaf
-    if (proj.browsers.length > 0) {
-      const br = proj.browsers[0]
-      navigate({ view: 'browser', projectId: proj.projectId, port: String(srv.port), browserId: br.browserId ?? br.connId })
-    } else {
-      navigate({ view: 'project', projectId: proj.projectId })
-    }
+      autoSelected = true
+      const proj = projects[0]
+      const srv = proj.servers[0]
+      if (!srv) {
+        navigate({ view: 'project', projectId: proj.projectId })
+        return
+      }
+      if (proj.browsers.length > 0) {
+        const br = proj.browsers[0]
+        navigate({ view: 'browser', projectId: proj.projectId, port: String(srv.port), browserId: br.browserId ?? br.connId })
+      } else {
+        navigate({ view: 'project', projectId: proj.projectId })
+      }
+    })
   })
 
   function onToggleTheme() {

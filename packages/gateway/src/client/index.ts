@@ -332,7 +332,13 @@
 
       let result: any
       for (let i = 0; i < steps.length; i++) {
-        const fn = new AsyncFunction(...globalNames, steps[i])
+        // Try expression-return first (like DevTools console), fall back to statements
+        let fn: Function
+        try {
+          fn = new AsyncFunction(...globalNames, 'return (' + steps[i] + ')')
+        } catch {
+          fn = new AsyncFunction(...globalNames, steps[i])
+        }
         result = await autoAwait(await fn(...globals))
 
         // Between steps (not after last): wait for DOM to settle
