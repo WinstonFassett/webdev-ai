@@ -132,6 +132,37 @@ export function getAllBrowsers(): Array<{ connId: string; browserId: string | nu
   }))
 }
 
+/**
+ * Evict browsers whose serverId doesn't match any registered server.
+ * Browsers with no serverId (untagged) are left alone.
+ * Only evicts browsers that have been connected longer than `graceMs` to allow
+ * for brief windows during gateway restart where servers haven't re-registered yet.
+ */
+export function evictOrphanBrowsers(registeredServerIds: Set<string>, graceMs = 15000): number {
+  let evicted = 0
+  const now = Date.now()
+  for (const [connId, conn] of browsers) {
+    if (!conn.serverId) continue // untagged browsers are fine
+    if (registeredServerIds.has(conn.serverId)) continue // server is registered
+    if (now - conn.connectedAt < graceMs) continue // within grace period
+
+    // Reject all pending commands
+    for (const [, pending] of conn.pending) {
+      clearTimeout(pending.timer)
+      pending.reject(new Error('Browser evicted — server not registered'))
+    }
+    conn.pending.clear()
+    conn.ws.close()
+    browsers.delete(connId)
+    const idx = connectionOrder.indexOf(connId)
+    if (idx >= 0) connectionOrder.splice(idx, 1)
+    console.log(`[web-dev-mcp] Orphan browser evicted (${connId}) — serverId ${conn.serverId} not registered`)
+    for (const cb of browserEventListeners) cb('disconnect', { connId, browserId: conn.browserId, serverId: conn.serverId })
+    evicted++
+  }
+  return evicted
+}
+
 export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...args: any[]) => void): void }, rpcPath: string) {
   const wss = new WebSocketServer({ noServer: true })
 

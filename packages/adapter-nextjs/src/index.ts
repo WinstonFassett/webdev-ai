@@ -72,17 +72,21 @@ export function withWebDevMcp(
   if (!process.env.__WEB_DEV_MCP_REGISTERED__) {
     process.env.__WEB_DEV_MCP_REGISTERED__ = '1'
 
+    const registrationPayload = {
+      id: serverId,
+      type: 'nextjs',
+      port: parseInt(process.env.PORT || '3000', 10),
+      pid: process.pid,
+      directory: process.cwd(),
+    }
+
     ensureGateway(gatewayUrl).then(async () => {
       await patchConsole(gatewayUrl, serverId)
-      _devEvents = await connectDevEvents(gatewayUrl, serverId)
-
-      registerWithRetry(gatewayUrl, {
-        id: serverId,
-        type: 'nextjs',
-        port: parseInt(process.env.PORT || '3000', 10),
-        pid: process.pid,
-        directory: process.cwd(),
+      _devEvents = await connectDevEvents(gatewayUrl, serverId, {
+        registrationPayload,
       })
+
+      registerWithRetry(gatewayUrl, registrationPayload)
     })
   }
 

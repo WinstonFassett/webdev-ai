@@ -14,7 +14,7 @@ import { NetworkWriter } from './writers/network.js'
 import { DevEventsWriter, type BuildEventPayload } from './writers/dev-events.js'
 import { ServerConsoleWriter } from './writers/server-console.js'
 import { createMcpMiddleware, sendNotificationToAll, type McpContext } from './mcp-server.js'
-import { setupRpcWebSocket, onBrowserEvent, emitLogEvent, removeBrowsersByServer } from './rpc-server.js'
+import { setupRpcWebSocket, onBrowserEvent, emitLogEvent, removeBrowsersByServer, evictOrphanBrowsers } from './rpc-server.js'
 import { handleAdmin } from './admin.js'
 import { ServerRegistry, type RegisteredServer, makeServerId, makeProjectId, initProjectLogDir } from './registry.js'
 import { handleElementGrabRequest } from './element-grab.js'
@@ -158,6 +158,13 @@ export async function startGateway(options: GatewayOptions) {
     }
     if (removedIds.length > 0) {
       console.log(`[registry] Cleaned up ${removedIds.length} dead server(s)`)
+    }
+
+    // Evict browsers whose serverId doesn't match any registered server
+    const registeredIds = new Set(registry.getAll().map(s => s.id))
+    const orphans = evictOrphanBrowsers(registeredIds)
+    if (orphans > 0) {
+      console.log(`[registry] Evicted ${orphans} orphan browser(s)`)
     }
   }, 5000)
 

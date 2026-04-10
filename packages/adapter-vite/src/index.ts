@@ -11,6 +11,7 @@ import {
   connectDevEvents,
   type RegistrationPayload,
   type DevEventsHandle,
+  type ConnectDevEventsOptions,
 } from '@winstonfassett/web-dev-mcp-gateway/helpers'
 
 export interface ViteAdapterOptions {
@@ -52,8 +53,10 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
       }
       registerWithRetry(gatewayUrl, payload)
 
-      // Connect dev events WebSocket
-      devEvents = await connectDevEvents(gatewayUrl, serverId!)
+      // Connect dev events WebSocket (with re-registration on reconnect)
+      devEvents = await connectDevEvents(gatewayUrl, serverId!, {
+        registrationPayload: payload,
+      })
 
       // Serve gateway's bundled client.js at /__web-dev-mcp.js
       const clientPath = resolveClientPath()

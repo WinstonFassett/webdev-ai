@@ -147,11 +147,26 @@ export interface DevEventsHandle {
   close: () => void
 }
 
+export interface ConnectDevEventsOptions {
+  /** Registration payload to re-send on reconnect (gateway restart recovery) */
+  registrationPayload?: RegistrationPayload
+  /** Callback when re-registration succeeds after reconnect */
+  onReregistered?: (result: RegistrationResult) => void
+}
+
 /**
  * Connect to the gateway's dev-events WebSocket for build/HMR events.
  * Returns a handle to send events and close the connection.
+ *
+ * When `registrationPayload` is provided, the adapter will re-register
+ * with the gateway on every WebSocket reconnect. This handles the case
+ * where the gateway restarts and loses its in-memory server registry.
  */
-export async function connectDevEvents(gatewayUrl: string, serverId: string): Promise<DevEventsHandle> {
+export async function connectDevEvents(
+  gatewayUrl: string,
+  serverId: string,
+  options?: ConnectDevEventsOptions,
+): Promise<DevEventsHandle> {
   let WS: any
   try {
     WS = (await import('ws')).default
@@ -164,6 +179,18 @@ export async function connectDevEvents(gatewayUrl: string, serverId: string): Pr
   let queue: string[] = []
   let closed = false
   let gatewayWarned = false
+  let hasConnectedBefore = false
+
+  async function reregister() {
+    if (!options?.registrationPayload) return
+    const result = await registerWithGateway(gatewayUrl, options.registrationPayload)
+    if (result) {
+      _internalLogging = true
+      console.log(`  [web-dev-mcp] Re-registered with gateway (server: ${result.serverId})`)
+      _internalLogging = false
+      options.onReregistered?.(result)
+    }
+  }
 
   function connect() {
     if (closed) return
@@ -175,6 +202,12 @@ export async function connectDevEvents(gatewayUrl: string, serverId: string): Pr
         console.log(`  [web-dev-mcp] Gateway connected at ${gatewayUrl}`)
         gatewayWarned = false
       }
+      // On reconnect (not first connect), re-register with gateway
+      // to restore server identity after a gateway restart
+      if (hasConnectedBefore) {
+        reregister()
+      }
+      hasConnectedBefore = true
     })
     ws.on('close', () => { ws = null; if (!closed) setTimeout(connect, 3000) })
     ws.on('error', () => {
