@@ -693,7 +693,7 @@
 
   connectCmd()
 
-  originalConsole.log('[web-dev-mcp] Client loaded')
+  originalConsole.log(`[web-dev-mcp] Client loaded  browser=${browserId.slice(0, 8)}  server=${serverId || 'none'}  gateway=${gatewayOrigin}`)
 
   // Load element-grab overlay (lazy, on idle)
   const loadElementGrab = () => {
