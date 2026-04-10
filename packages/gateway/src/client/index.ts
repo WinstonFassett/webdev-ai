@@ -651,8 +651,8 @@
     cmdWs = new WebSocket(url)
 
     cmdWs.onopen = () => {
-      // Announce browser ID
-      cmdWs!.send(JSON.stringify({ type: 'init', browserId }))
+      // Announce browser ID + page info
+      cmdWs!.send(JSON.stringify({ type: 'init', browserId, url: location.href, title: document.title }))
       originalConsole.log('[web-dev-mcp] Command channel connected')
     }
 

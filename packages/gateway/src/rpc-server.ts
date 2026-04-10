@@ -19,6 +19,8 @@ interface BrowserConnection {
   ws: WsWebSocket
   browserId: string | null
   serverId: string | null
+  url: string | null
+  title: string | null
   connectedAt: number
   pending: Map<string, PendingCommand>
   nextId: number
@@ -119,11 +121,13 @@ export function removeBrowsersByServer(serverId: string): number {
   return removed
 }
 
-export function getAllBrowsers(): Array<{ connId: string; browserId: string | null; serverId: string | null; connectedAt: number }> {
+export function getAllBrowsers(): Array<{ connId: string; browserId: string | null; serverId: string | null; url: string | null; title: string | null; connectedAt: number }> {
   return Array.from(browsers.entries()).map(([connId, conn]) => ({
     connId,
     browserId: conn.browserId,
     serverId: conn.serverId,
+    url: conn.url,
+    title: conn.title,
     connectedAt: conn.connectedAt,
   }))
 }
@@ -155,6 +159,8 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
       ws,
       browserId: null,
       serverId,
+      url: null,
+      title: null,
       connectedAt: Date.now(),
       pending: new Map(),
       nextId: 0,
@@ -184,6 +190,13 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
         // Unsolicited message from browser (e.g. browserId announcement)
         if (msg.type === 'init' && msg.browserId) {
           conn.browserId = msg.browserId
+          if (msg.url) conn.url = msg.url
+          if (msg.title) conn.title = msg.title
+          const parts = [`[web-dev-mcp] Browser ${msg.browserId.slice(0, 8)}`]
+          if (msg.title) parts.push(`"${msg.title}"`)
+          if (msg.url) parts.push(msg.url)
+          if (serverId) parts.push(`server=${serverId}`)
+          console.log(parts.join('  '))
         }
       } catch {
         // Ignore malformed messages
