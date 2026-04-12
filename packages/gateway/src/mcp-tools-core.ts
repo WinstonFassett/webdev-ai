@@ -1,6 +1,8 @@
 // Core MCP tools: set_project, list_projects, list_browsers, get_diagnostics, clear, eval_js
 
 import { z } from 'zod'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { McpContext } from './mcp-server.js'
 import type { RegisteredServer } from './registry.js'
@@ -251,7 +253,29 @@ export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
         }
 
         const start = Date.now()
-        const result = await browserCommand(resolved.serverId, 'eval', { code: args.code })
+        let result = await browserCommand(resolved.serverId, 'eval', { code: args.code })
+
+        // Intercept screenshot results from browser.screenshot() — save to file instead of
+        // dumping base64 into the agent context
+        let parsed = result
+        if (typeof result === 'string' && result.includes('data:image/')) {
+          try { parsed = JSON.parse(result) } catch {}
+        }
+        if (parsed && typeof parsed === 'object' && typeof (parsed as any).data === 'string'
+            && (parsed as any).data.startsWith('data:image/')) {
+          const data = (parsed as any).data as string
+          const mimeType = data.startsWith('data:image/png') ? 'image/png' : 'image/jpeg'
+          const base64 = data.replace(/^data:image\/\w+;base64,/, '')
+          const logDir = resolved.server?.logDir ?? ctx.session.logDir
+          const screenshotDir = join(logDir, 'screenshots')
+          mkdirSync(screenshotDir, { recursive: true })
+          const ext = mimeType === 'image/png' ? 'png' : 'jpeg'
+          const filename = `screenshot-${Date.now()}.${ext}`
+          const filePath = join(screenshotDir, filename)
+          writeFileSync(filePath, Buffer.from(base64, 'base64'))
+          result = { path: filePath, width: (parsed as any).width, height: (parsed as any).height }
+        }
+
         const serialized = typeof result === 'string' ? result
           : result === undefined ? 'undefined'
           : result === null ? 'null'
