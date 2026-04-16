@@ -18,6 +18,7 @@ import { setupRpcWebSocket, onBrowserEvent, emitLogEvent, removeBrowsersByServer
 import { handleAdmin } from './admin.js'
 import { ServerRegistry, type RegisteredServer, makeServerId, makeProjectId, initProjectLogDir } from './registry.js'
 import { handleElementGrabRequest } from './element-grab.js'
+import { CDPRelay } from './cdp-relay.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -200,6 +201,15 @@ export async function startGateway(options: GatewayOptions) {
   // Request handler
   function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
     const url = req.url ?? ''
+
+    // CDP discovery endpoints (for Playwright connectOverCDP)
+    const cdpResponse = cdpRelay.handleHttp(url)
+    if (cdpResponse !== null) {
+      addCorsHeaders(res)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(cdpResponse))
+      return
+    }
 
     // CORS preflight
     if (req.method === 'OPTIONS') {
@@ -490,6 +500,9 @@ export async function startGateway(options: GatewayOptions) {
   // Setup command WebSocket (browser ↔ gateway JSON protocol)
   setupRpcWebSocket(server, '/__rpc')
 
+  // Setup CDP relay (extension ↔ Playwright bridge)
+  const cdpRelay = new CDPRelay({ gatewayPort: port })
+
   // Broadcast browser connect/disconnect to admin SSE
   onBrowserEvent((event, data) => {
     broadcastToAdmin(event === 'connect' ? 'browser_connect' : 'browser_disconnect', data)
@@ -498,6 +511,11 @@ export async function startGateway(options: GatewayOptions) {
   // Upgrade handler for events + dev-events + proxy WS
   server.on('upgrade', (request: http.IncomingMessage, socket: any, head: Buffer) => {
     const url = request.url ?? ''
+
+    // CDP relay handles /__cdp-extension and /devtools/browser/*
+    if (cdpRelay.handleUpgrade(request, socket, head)) {
+      return
+    }
 
     if (url === '/__events' || url.startsWith('/__events?')) {
       eventsWss.handleUpgrade(request, socket, head, (ws) => {
@@ -597,6 +615,7 @@ export async function startGateway(options: GatewayOptions) {
     console.log(`  Listen:  ${proto}://localhost:${port}`)
     console.log(`  MCP:     ${proto}://localhost:${port}${mcpPath}/sse`)
     console.log(`  Logs:    ${session.logDir}`)
+    console.log(`  CDP:     ${proto}://localhost:${port}/json/version (extension relay)`)
     if (useHttps) console.log(`  HTTPS:   enabled`)
     console.log('')
   })
