@@ -102,13 +102,9 @@
         {:else if route.view === 'project'}
           {route.projectId}
         {:else if route.view === 'server'}
-          <a href="#/project/{route.projectId}" class="hover:text-accent transition-colors">{route.projectId}</a>
-          <span class="text-muted-foreground/50 mx-0.5">/</span>
-          :{route.port}
+          <a href="#/project/{route.projectId}" class="hover:text-accent transition-colors">{route.projectId}</a><span class="text-muted-foreground">:{route.port}</span>
         {:else if route.view === 'browser'}
-          <a href="#/project/{route.projectId}" class="hover:text-accent transition-colors">{route.projectId}</a>
-          <span class="text-muted-foreground/50 mx-0.5">/</span>
-          <a href="#/project/{route.projectId}/{route.port}" class="hover:text-accent transition-colors">:{route.port}</a>
+          <a href="#/project/{route.projectId}/{route.port}" class="hover:text-accent transition-colors">{route.projectId}<span class="text-muted-foreground">:{route.port}</span></a>
           <span class="text-muted-foreground/50 mx-0.5">/</span>
           {route.browserId?.slice(0, 6)}
         {/if}

@@ -218,17 +218,29 @@ export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
     },
     async (args) => {
       try {
-        const logPaths = getLogPaths(ctx, args.project)
+        const resolved = resolveProject(ctx, args.project)
         let channelsToClear = args.channels
         if (!channelsToClear || channelsToClear.length === 0) {
-          channelsToClear = Object.keys(logPaths)
+          channelsToClear = Object.keys(resolved.logPaths)
         }
-        const countsBefore = truncateChannelFiles(logPaths, channelsToClear)
+        const countsBefore = truncateChannelFiles(resolved.logPaths, channelsToClear)
         ctx.session.checkpointTs = Date.now()
+
+        // Clear browser console for connected browsers
+        let browsersCleared = 0
+        if (resolved.serverId) {
+          const connected = getAllBrowsers().filter(b => b.serverId === resolved.serverId)
+          if (connected.length > 0) {
+            await browserCommand(resolved.serverId, 'eval', { code: 'console.clear()' }).catch(() => {})
+            browsersCleared = connected.length
+          }
+        }
+
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({
             checkpoint_ts: ctx.session.checkpointTs,
             logs_cleared: countsBefore,
+            browsers_cleared: browsersCleared,
           }, null, 2) }],
         }
       } catch (err: any) {
