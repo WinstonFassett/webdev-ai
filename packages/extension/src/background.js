@@ -104,10 +104,18 @@ async function attachTab(tabId) {
 
     const result = await chrome.debugger.sendCommand(debuggee, 'Target.getTargetInfo')
     const targetInfo = result.targetInfo
+    console.log(`[web-dev-mcp] Target.getTargetInfo result:`, JSON.stringify(targetInfo))
+
+    // Target.getTargetInfo often returns empty/broken URL via chrome.debugger; get from tab API
+    if (!targetInfo.url || targetInfo.url === '' || targetInfo.url === ':') {
+      const tab = await chrome.tabs.get(tabId)
+      targetInfo.url = tab.url || ''
+      targetInfo.title = tab.title || ''
+    }
 
     const sessionId = `wdm-tab-${sessionScope}-${nextSessionId++}`
 
-    attachedTabs.set(tabId, { sessionId, targetId: targetInfo.targetId })
+    attachedTabs.set(tabId, { sessionId, targetId: targetInfo.targetId, url: targetInfo.url, targetInfo })
 
     // Connect to relay if not already connected
     ensureRelayConnection()
@@ -248,7 +256,7 @@ function ensureRelayConnection() {
           method: 'Target.attachedToTarget',
           params: {
             sessionId: info.sessionId,
-            targetInfo: { targetId: info.targetId, type: 'page', attached: true, url: '' },
+            targetInfo: info.targetInfo || { targetId: info.targetId, type: 'page', attached: true, url: info.url || '' },
             waitingForDebugger: false,
           },
         },

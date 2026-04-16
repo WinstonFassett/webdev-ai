@@ -5,7 +5,7 @@
  * then against relay.
  */
 
-import { chromium } from 'playwright-core'
+import { chromium } from '@xmorse/playwright-core'
 
 const TARGET = process.env.CDP_URL || 'http://127.0.0.1:9222'
 console.log(`Testing STOCK playwright-core against ${TARGET}...`)
@@ -42,7 +42,9 @@ async function main() {
   const box = await loc.boundingBox()
   console.log(`✓ Locator: ${JSON.stringify(box)}`)
 
-  const cdp = await page.context().newCDPSession(page)
+  // Use getExistingCDPSession — same pattern as Playwriter.
+  // newCDPSession calls Target.attachToBrowserTarget which doesn't work through extension relay.
+  const cdp = await page.context().getExistingCDPSession(page)
   const { nodes } = await cdp.send('Accessibility.getFullAXTree')
   console.log(`✓ A11y: ${nodes.length} nodes`)
   await cdp.detach()
