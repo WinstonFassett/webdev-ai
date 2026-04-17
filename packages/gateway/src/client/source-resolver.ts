@@ -144,6 +144,46 @@ function resolvePreact(el: Element): SourceInfo | null {
   return null
 }
 
+// --- Optional element-source enhancement (React 19 + Next.js) ---
+// If element-source is installed in the project, use it for richer resolution.
+// Detected once, cached forever.
+
+let elementSourceMod: any = undefined // undefined = not checked, null = not available
+
+async function tryLoadElementSource(): Promise<any> {
+  if (elementSourceMod !== undefined) return elementSourceMod
+  try {
+    // element-source is served at /__libs/element-source.js if gateway has it
+    const gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+    const mod = await import(/* @vite-ignore */ gatewayOrigin + '/__libs/element-source.js')
+    elementSourceMod = mod
+    return mod
+  } catch {
+    elementSourceMod = null
+    return null
+  }
+}
+
+// Fire detection on load — non-blocking
+tryLoadElementSource()
+
+async function resolveWithElementSource(el: Element): Promise<SourceInfo | null> {
+  const mod = elementSourceMod
+  if (!mod) return null
+  try {
+    const info = await mod.resolveElementInfo(el)
+    if (!info) return null
+    return {
+      component: info.componentName ?? null,
+      file: info.source?.filePath ?? null,
+      line: info.source?.lineNumber ?? null,
+      column: info.source?.columnNumber ?? null,
+    }
+  } catch {
+    return null
+  }
+}
+
 // --- Public API ---
 
 const resolvers = [resolveReact, resolveVue, resolveSvelte, resolvePreact]
@@ -158,6 +198,20 @@ export function resolveElementSource(el: Element): SourceInfo | null {
     if (info) return info
   }
   return null
+}
+
+/**
+ * Async version that tries element-source (if installed) for richer results.
+ * Falls back to the sync lightweight resolver.
+ */
+export async function resolveElementSourceAsync(el: Element): Promise<SourceInfo | null> {
+  // Try element-source first (handles React 19 owner stacks, Next.js server components)
+  if (elementSourceMod) {
+    const rich = await resolveWithElementSource(el)
+    if (rich) return rich
+  }
+  // Fall back to lightweight sync resolver
+  return resolveElementSource(el)
 }
 
 /**

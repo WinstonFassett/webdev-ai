@@ -5,7 +5,7 @@
  */
 import { createElementSelector } from './utils/css-selector.js'
 import { PREVIEW_TEXT_MAX_LENGTH, PREVIEW_ATTR_VALUE_MAX_LENGTH } from './constants.js'
-import { resolveElementSource, formatSource } from '../source-resolver.js'
+import { resolveElementSource, resolveElementSourceAsync, formatSource } from '../source-resolver.js'
 
 // --- Truncate helper ---
 const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) + '…' : s
@@ -48,14 +48,14 @@ export const getElementContext = async (element: Element): Promise<ElementContex
   const html = getHTMLPreview(element)
   const selector = createElementSelector(element)
 
-  const info = resolveElementSource(element)
+  // Use async resolver — picks up element-source if installed for richer results
+  const info = await resolveElementSourceAsync(element)
   const component = info?.component ?? null
   const src = info ? formatSource(info) : null
   const source: ElementContext['source'] | undefined = info?.file
     ? { file: info.file, line: info.line ?? undefined, column: info.column ?? undefined }
     : undefined
 
-  // Stack is now just a single-line source reference (no full owner chain)
   const stack = src ? `src: ${src}` : ''
 
   return { html, stack, component, selector, source }

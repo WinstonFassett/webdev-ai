@@ -25,6 +25,24 @@ await build({
 })
 console.log('Screenshot lib built → dist/libs/modern-screenshot.js')
 
+// Build element-source if installed (optional — enhances React 19 + Next.js source resolution)
+// Served at /__libs/element-source.js, detected at runtime by source-resolver.ts
+try {
+  await import.meta.resolve('element-source')
+  await build({
+    entryPoints: ['element-source'],
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    outfile: 'dist/libs/element-source.js',
+    minify: true,
+  })
+  console.log('Element-source lib built → dist/libs/element-source.js (optional)')
+} catch {
+  console.log('Element-source not installed — skipping (optional)')
+}
+
 // Build element-grab overlay (vanilla TS, no framework)
 // Lazy-loaded by client.js, served at /__element-grab.js
 await build({
