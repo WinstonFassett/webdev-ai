@@ -30,6 +30,7 @@ import { WebSocket, WebSocketServer } from 'ws'
 import { EventEmitter } from 'node:events'
 import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
+import type { Browser, Page, BrowserContext } from '@xmorse/playwright-core'
 
 export interface CDPRelayOptions {
   gatewayPort: number
@@ -54,6 +55,8 @@ export class CDPRelay {
   private nextCommandId = 1
   private gatewayPort: number
   private events = new EventEmitter() // Internal event bus for Runtime.enable wait pattern
+  private pwBrowser: Browser | null = null
+  private pwConnecting = false
 
   constructor(options: CDPRelayOptions) {
     this.gatewayPort = options.gatewayPort
@@ -65,6 +68,57 @@ export class CDPRelay {
 
   get isAvailable(): boolean {
     return this.extensionWs?.readyState === WebSocket.OPEN && this.targets.size > 0
+  }
+
+  /** Get all Playwright pages via the persistent CDP connection */
+  async getPages(): Promise<Page[]> {
+    const browser = await this.ensurePlaywrightConnection()
+    if (!browser) return []
+    return browser.contexts().flatMap((c) => c.pages())
+  }
+
+  /** Get first available Playwright page, or null */
+  async getPage(): Promise<Page | null> {
+    const pages = await this.getPages()
+    return pages[0] || null
+  }
+
+  /** Get a CDP session for a page (using getExistingCDPSession, not newCDPSession) */
+  async getCDPSession(page: Page): Promise<any> {
+    return page.context().getExistingCDPSession(page)
+  }
+
+  private async ensurePlaywrightConnection(): Promise<Browser | null> {
+    if (this.pwBrowser) return this.pwBrowser
+    if (this.pwConnecting) return null
+    if (!this.isAvailable) return null
+
+    this.pwConnecting = true
+    try {
+      const { chromium } = await import('@xmorse/playwright-core')
+      this.pwBrowser = await chromium.connectOverCDP(`http://127.0.0.1:${this.gatewayPort}`)
+      console.log('[cdp-relay] Playwright connected internally')
+
+      // Clean up on disconnect
+      this.pwBrowser.on('disconnected', () => {
+        console.log('[cdp-relay] Playwright internal connection lost')
+        this.pwBrowser = null
+      })
+
+      return this.pwBrowser
+    } catch (e: any) {
+      console.error('[cdp-relay] Failed to connect Playwright internally:', e.message)
+      return null
+    } finally {
+      this.pwConnecting = false
+    }
+  }
+
+  private disconnectPlaywright() {
+    if (this.pwBrowser) {
+      this.pwBrowser.close().catch(() => {})
+      this.pwBrowser = null
+    }
   }
 
   // ---- HTTP & WebSocket routing ----
@@ -141,6 +195,7 @@ export class CDPRelay {
       console.log('[cdp-relay] Extension disconnected')
       this.extensionWs = null
       this.targets.clear()
+      this.disconnectPlaywright()
       this.playwrightWs?.close()
     })
   }
@@ -392,6 +447,7 @@ export class CDPRelay {
   }
 
   close() {
+    this.disconnectPlaywright()
     this.extensionWs?.close()
     this.playwrightWs?.close()
     this.extensionWss.close()

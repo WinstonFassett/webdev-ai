@@ -78,7 +78,14 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
       if (serverId) {
         initScript += `\nwindow.__WEB_DEV_MCP_SERVER__ = ${JSON.stringify(serverId)};`
       }
+      const metaAttrs: Record<string, string> = {
+        name: 'web-dev-mcp',
+        content: gatewayUrl,
+      }
+      if (serverId) metaAttrs['data-server-id'] = serverId
+
       return [
+        { tag: 'meta', attrs: metaAttrs, injectTo: 'head-prepend' as const },
         { tag: 'script', children: initScript, injectTo: 'head-prepend' as const },
         { tag: 'script', attrs: { src: '/__web-dev-mcp.js' }, injectTo: 'head-prepend' as const },
       ]

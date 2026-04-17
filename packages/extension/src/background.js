@@ -278,14 +278,29 @@ function ensureRelayConnection() {
   }
 
   relayWs.onclose = () => {
-    console.log('[web-dev-mcp] Relay disconnected, will reconnect on next detection')
+    console.log('[web-dev-mcp] Relay disconnected, reconnecting in 3s...')
     relayWs = null
+    scheduleReconnect()
   }
 
   relayWs.onerror = (e) => {
     console.error('[web-dev-mcp] Relay WebSocket error')
-    relayWs = null
+    // onclose will fire after onerror, reconnect handled there
   }
+}
+
+let reconnectTimer = null
+
+function scheduleReconnect() {
+  if (reconnectTimer) return
+  if (attachedTabs.size === 0) return // nothing to reconnect for
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    if (!relayWs || relayWs.readyState !== WebSocket.OPEN) {
+      console.log('[web-dev-mcp] Attempting reconnect...')
+      ensureRelayConnection()
+    }
+  }, 3000)
 }
 
 function sendToRelay(msg) {

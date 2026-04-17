@@ -23,6 +23,15 @@ export function WebDevMcpInit() {
       (window as any).__WEB_DEV_MCP_ORIGIN__ = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY
     }
 
+    // Meta tag for extension auto-detection
+    const meta = document.createElement('meta')
+    meta.name = 'web-dev-mcp'
+    meta.content = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY || ''
+    if (process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER) {
+      meta.setAttribute('data-server-id', process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER)
+    }
+    document.head.appendChild(meta)
+
     const script = document.createElement('script')
     script.src = '/__web-dev-mcp.js'
     script.async = true
