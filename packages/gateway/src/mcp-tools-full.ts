@@ -164,17 +164,72 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
 
   mcp.tool(
     'query_dom',
-    'Query DOM elements and return cleaned HTML snapshot.',
+    'Inspect DOM structure. Returns simplified tree with tags, key attributes, and text. For page content/text, use get_page_markdown instead. Start specific (#main, .hero-section, [role="navigation"]). Use "body" with max_depth:3 only for a page skeleton overview. If output exceeds max_output, behavior depends on on_limit: "hint" (default) stops and returns child hints to narrow your selector; "file" writes the full result to a file you can read/grep.',
     {
-      selector: z.string().describe('CSS selector'),
+      selector: z.string().optional().describe('CSS selector (default: body)'),
       max_depth: z.number().optional().describe('Max nesting depth (default: 3)'),
+      max_output: z.number().optional().describe('Max output chars before limit behavior kicks in (default: 30000, max: 200000)'),
+      on_limit: z.enum(['hint', 'file']).optional().describe('What to do when output exceeds max_output. "hint" (default): stop and return child selector hints. "file": write full result to a file and return the path.'),
       attributes: z.array(z.string()).optional().describe('Attributes to include'),
       text_length: z.number().optional().describe('Max text chars per element (default: 100)'),
     },
     async (args) => {
       try {
-        const result = await cmd(ctx, 'queryDom', { selector: args.selector ?? 'body', max_depth: args.max_depth, attributes: args.attributes, text_length: args.text_length })
-        return { content: [{ type: 'text' as const, text: (result as any).html ?? JSON.stringify(result, null, 2) }] }
+        const result = await cmd(ctx, 'queryDom', {
+          selector: args.selector ?? 'body',
+          max_depth: args.max_depth,
+          max_output: args.max_output,
+          on_limit: args.on_limit,
+          attributes: args.attributes,
+          text_length: args.text_length,
+        })
+        const r = result as any
+
+        // on_limit: 'hint' — output was truncated, return hint with partial result
+        if (r.too_large) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                too_large: true,
+                element_count: r.element_count,
+                child_count: r.child_count,
+                children_hints: r.children_hints,
+                hint: r.hint,
+                partial_html: r.html || undefined,
+              }, null, 2),
+            }],
+          }
+        }
+
+        // on_limit: 'file' — browser sent full result, write to file
+        if (r.write_to_file) {
+          const fullHtml = r.html ?? ''
+          const resolved = resolveProject(ctx)
+          const logDir = resolved.server?.logDir ?? ctx.session.logDir
+          const domDir = join(logDir, 'dom-snapshots')
+          mkdirSync(domDir, { recursive: true })
+          const filename = `query-dom-${Date.now()}.html`
+          const filePath = join(domDir, filename)
+          writeFileSync(filePath, fullHtml)
+
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({
+                file: filePath,
+                file_lines: fullHtml.split('\n').length,
+                file_chars: fullHtml.length,
+                element_count: r.element_count,
+                child_count: r.child_count,
+                children_hints: r.children_hints,
+                hint: `Full DOM snapshot written to file (${fullHtml.split('\n').length} lines, ${fullHtml.length} chars). Read or grep it.`,
+              }, null, 2),
+            }],
+          }
+        }
+
+        return { content: [{ type: 'text' as const, text: r.html ?? JSON.stringify(r, null, 2) }] }
       } catch (err: any) { return errResult(err) }
     },
   )

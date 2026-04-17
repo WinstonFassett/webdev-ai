@@ -351,11 +351,32 @@
       return serialize(result)
     },
 
-    queryDom(params: { selector?: string, max_depth?: number, attributes?: string[], text_length?: number }) {
+    queryDom(params: { selector?: string, max_depth?: number, max_output?: number, on_limit?: string, attributes?: string[], text_length?: number }) {
       const { max_depth = 3, attributes = ['id', 'class', 'href', 'src', 'value', 'type', 'placeholder', 'role', 'aria-label'], text_length = 100 } = params
+      const maxOutput = Math.max(1000, Math.min(params.max_output ?? 30000, 200000))
+      const onLimit = params.on_limit === 'file' ? 'file' : 'hint'
       const selector = params.selector || 'body'
       const root = document.querySelector(selector) ?? document.body
       if (!root) return { html: '', element_count: 0, truncated: false, error: 'No element found' }
+
+      function describeChildren(el: any): string[] {
+        const children = el.children
+        const hints: string[] = []
+        const maxToShow = 15
+        for (let i = 0; i < Math.min(children.length, maxToShow); i++) {
+          const child = children[i]
+          const tag = child.tagName.toLowerCase()
+          const id = child.getAttribute('id')
+          const role = child.getAttribute('role')
+          const cls = child.getAttribute('class')
+          if (id) hints.push(`<${tag} id="${id}">`)
+          else if (role) hints.push(`<${tag} role="${role}">`)
+          else if (cls) hints.push(`<${tag} class="${cls.length > 30 ? cls.slice(0, 30) + '\u2026' : cls}">`)
+          else hints.push(`<${tag}>`)
+        }
+        if (children.length > maxToShow) hints.push(`\u2026and ${children.length - maxToShow} more`)
+        return hints
+      }
 
       let elementCount = 0
       function serializeNode(node: any, depth: number, indent: number): string {
@@ -398,10 +419,34 @@
         return pad + '<' + tag + attrs + '>\n' + childStrings.join('\n') + '\n' + pad + '</' + tag + '>'
       }
 
-      let html = serializeNode(root, 0, 0)
-      const truncated = html.length > 20480
-      if (truncated) html = html.slice(0, 20480) + '\n\u2026(truncated)'
-      return { html, element_count: elementCount, truncated }
+      const html = serializeNode(root, 0, 0)
+
+      // Check if output exceeds the budget
+      if (html.length > maxOutput) {
+        const hints = describeChildren(root)
+        if (onLimit === 'file') {
+          return {
+            html,
+            element_count: elementCount,
+            truncated: false,
+            write_to_file: true,
+            child_count: root.children.length,
+            children_hints: hints,
+          }
+        }
+        // on_limit: 'hint' (default) — truncate and return hints
+        return {
+          html: html.slice(0, maxOutput) + '\n\u2026(truncated)',
+          element_count: elementCount,
+          truncated: true,
+          too_large: true,
+          child_count: root.children.length,
+          children_hints: hints,
+          hint: `Output truncated at ${maxOutput} chars (full size: ${html.length} chars, ${elementCount} elements). ${root.children.length} direct children: ${hints.join(', ')}. Narrow your selector or increase max_output.`
+        }
+      }
+
+      return { html, element_count: elementCount, truncated: false }
     },
 
     async screenshot(params: {
