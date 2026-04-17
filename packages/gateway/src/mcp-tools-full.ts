@@ -170,6 +170,7 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
       max_depth: z.number().optional().describe('Max nesting depth (default: 3)'),
       max_output: z.number().optional().describe('Max output chars before limit behavior kicks in (default: 30000, max: 200000)'),
       on_limit: z.enum(['hint', 'file']).optional().describe('What to do when output exceeds max_output. "hint" (default): stop and return child selector hints. "file": write full result to a file and return the path.'),
+      include_source: z.boolean().optional().describe('Include source file:line and component name on elements (React, Vue, Svelte, Preact dev mode). Default: false.'),
       attributes: z.array(z.string()).optional().describe('Attributes to include'),
       text_length: z.number().optional().describe('Max text chars per element (default: 100)'),
     },
@@ -180,6 +181,7 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
           max_depth: args.max_depth,
           max_output: args.max_output,
           on_limit: args.on_limit,
+          include_source: args.include_source,
           attributes: args.attributes,
           text_length: args.text_length,
         })

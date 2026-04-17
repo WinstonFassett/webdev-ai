@@ -5,6 +5,8 @@
 // Patches console.*, error handlers, fetch/XHR
 // Sends events to gateway via WebSocket, handles commands via JSON protocol
 
+import { resolveElementSource, formatSource } from './source-resolver.js'
+
 ;(function() {
   if ((window as any).__WEB_DEV_MCP_LOADED__) return
   ;(window as any).__WEB_DEV_MCP_LOADED__ = true
@@ -230,10 +232,16 @@
     async elementSource(selector: string) {
       const el = findElement(selector)
       if (!el) return { error: 'Element not found: ' + selector }
-      if (typeof (window as any).__resolveElementInfo !== 'function') return { error: 'element-source not installed' }
       try {
-        const info = await (window as any).__resolveElementInfo(el)
-        return info
+        const info = resolveElementSource(el)
+        if (!info) return { error: 'No source info available (not a framework component or not in dev mode)' }
+        return {
+          component: info.component,
+          file: info.file,
+          line: info.line,
+          column: info.column,
+          source: formatSource(info),
+        }
       } catch (err: any) {
         return { error: err.message }
       }
@@ -351,8 +359,8 @@
       return serialize(result)
     },
 
-    queryDom(params: { selector?: string, max_depth?: number, max_output?: number, on_limit?: string, attributes?: string[], text_length?: number }) {
-      const { max_depth = 3, attributes = ['id', 'class', 'href', 'src', 'value', 'type', 'placeholder', 'role', 'aria-label'], text_length = 100 } = params
+    queryDom(params: { selector?: string, max_depth?: number, max_output?: number, on_limit?: string, include_source?: boolean, attributes?: string[], text_length?: number }) {
+      const { max_depth = 3, attributes = ['id', 'class', 'href', 'src', 'value', 'type', 'placeholder', 'role', 'aria-label'], text_length = 100, include_source = false } = params
       const maxOutput = Math.max(1000, Math.min(params.max_output ?? 30000, 200000))
       const onLimit = params.on_limit === 'file' ? 'file' : 'hint'
       const selector = params.selector || 'body'
@@ -398,6 +406,14 @@
           if (val !== null && val !== '') {
             const displayVal = attr === 'class' && val.length > 80 ? val.slice(0, 80) + '\u2026' : val
             attrs += ' ' + attr + '="' + displayVal.replace(/"/g, '&quot;') + '"'
+          }
+        }
+        if (include_source) {
+          const info = resolveElementSource(el)
+          if (info) {
+            const src = formatSource(info)
+            if (src) attrs += ' source="' + src.replace(/"/g, '&quot;') + '"'
+            if (info.component) attrs += ' component="' + info.component.replace(/"/g, '&quot;') + '"'
           }
         }
         if (['br', 'hr', 'img', 'input'].includes(tag)) return pad + '<' + tag + attrs + '/>'

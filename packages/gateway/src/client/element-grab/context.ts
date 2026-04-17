@@ -1,56 +1,19 @@
 /**
- * Element context resolution using element-source (multi-framework).
- * element-source handles React, Vue, Svelte, Solid — component names + source locations.
- * Loaded lazily on first grab to keep initial bundle small.
+ * Element context resolution using inline multi-framework source resolver.
+ * Handles React, Vue, Svelte, Preact — component names + source locations.
+ * No external dependencies (replaces element-source/bippy).
  */
 import { createElementSelector } from './utils/css-selector.js'
 import { PREVIEW_TEXT_MAX_LENGTH, PREVIEW_ATTR_VALUE_MAX_LENGTH } from './constants.js'
-
-// --- Lazy-loaded element-source module ---
-let elementSourceModule: any = null
-let loadPromise: Promise<any> | null = null
-
-const loadElementSource = async () => {
-  if (elementSourceModule) return elementSourceModule
-  if (loadPromise) return loadPromise
-  const gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
-  const libUrl = gatewayOrigin + '/__libs/element-source.js'
-  loadPromise = import(/* @vite-ignore */ libUrl).catch(() =>
-    // Fallback: try bundled import
-    import('element-source')
-  ).then(mod => {
-    elementSourceModule = mod
-    return mod
-  }).catch(err => {
-    console.warn('[element-grab] Could not load element-source:', err)
-    return null
-  })
-  return loadPromise
-}
+import { resolveElementSource, formatSource } from '../source-resolver.js'
 
 // --- Truncate helper ---
 const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) + '…' : s
 
-// --- Get component display name (sync — uses cached module) ---
+// --- Get component display name (sync) ---
 export const getComponentDisplayName = (element: Element): string | null => {
-  if (!elementSourceModule?.resolveComponentName) return null
-  // resolveComponentName is async but we need sync for hover labels.
-  // Fire-and-forget: start the resolution, return null for now.
-  // The next hover tick will have the cached result.
-  // For sync access, try the React fiber directly.
-  try {
-    const fiberKey = Object.keys(element).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'))
-    if (fiberKey) {
-      const fiber = (element as any)[fiberKey]
-      let cur = fiber?.return
-      while (cur) {
-        const name = cur.type?.displayName || cur.type?.name
-        if (name && typeof cur.type === 'function' && name.length > 1 && name[0] === name[0].toUpperCase()) return name
-        cur = cur.return
-      }
-    }
-  } catch {}
-  return null
+  const info = resolveElementSource(element)
+  return info?.component ?? null
 }
 
 // --- Get HTML preview (compact) ---
@@ -82,37 +45,18 @@ export interface ElementContext {
 }
 
 export const getElementContext = async (element: Element): Promise<ElementContext> => {
-  const mod = await loadElementSource()
-
   const html = getHTMLPreview(element)
   const selector = createElementSelector(element)
 
-  let component: string | null = null
-  let stack = ''
-  let source: ElementContext['source'] | undefined
+  const info = resolveElementSource(element)
+  const component = info?.component ?? null
+  const src = info ? formatSource(info) : null
+  const source: ElementContext['source'] | undefined = info?.file
+    ? { file: info.file, line: info.line ?? undefined, column: info.column ?? undefined }
+    : undefined
 
-  if (mod) {
-    // Get component name
-    try {
-      component = await mod.resolveComponentName(element)
-    } catch {}
-
-    // Get stack context (source locations + component chain)
-    try {
-      const stackFrames = await mod.resolveStack(element)
-      if (stackFrames.length > 0) {
-        stack = mod.formatStack(stackFrames, 3)
-        const frame = stackFrames[0] as any
-        if (frame.fileName || frame.filePath) {
-          source = {
-            file: frame.fileName || frame.filePath,
-            line: frame.lineNumber,
-            column: frame.columnNumber,
-          }
-        }
-      }
-    } catch {}
-  }
+  // Stack is now just a single-line source reference (no full owner chain)
+  const stack = src ? `src: ${src}` : ''
 
   return { html, stack, component, selector, source }
 }
@@ -135,9 +79,6 @@ export const formatContextCard = (ctx: ElementContext): string => {
     if (ctx.source.column) loc += `:${ctx.source.column}`
     lines.push(`src: ${loc}`)
   }
-
-  // Stack context (component chain)
-  if (ctx.stack) lines.push(ctx.stack.trim())
 
   // Selector
   lines.push(`sel: ${ctx.selector}`)

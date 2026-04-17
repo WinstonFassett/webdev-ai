@@ -25,22 +25,8 @@ await build({
 })
 console.log('Screenshot lib built → dist/libs/modern-screenshot.js')
 
-// Build element-source as a standalone ESM module for lazy loading
-// Served at /__libs/element-source.js, loaded on first grab
-await build({
-  entryPoints: ['element-source'],
-  bundle: true,
-  format: 'esm',
-  platform: 'browser',
-  target: 'es2022',
-  outfile: 'dist/libs/element-source.js',
-  minify: true,
-})
-console.log('Element-source lib built → dist/libs/element-source.js')
-
 // Build element-grab overlay (vanilla TS, no framework)
 // Lazy-loaded by client.js, served at /__element-grab.js
-// element-source is externalized — loaded lazily from /__libs/element-source.js
 await build({
   entryPoints: ['src/client/element-grab/index.ts'],
   bundle: true,
@@ -49,7 +35,6 @@ await build({
   target: 'es2022',
   outfile: 'dist/element-grab-client.js',
   minify: true,
-  external: ['element-source'],
   loader: { '.css': 'text' },
 })
 console.log('Element-grab built → dist/element-grab-client.js')
