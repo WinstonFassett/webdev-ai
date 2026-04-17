@@ -28,8 +28,10 @@ function errResult(err: any) {
 
 /** Send a command to the browser. Tries Playwright (CDP) first, falls back to injected client RPC. */
 async function cmd(ctx: McpContext, method: string, params?: any) {
-  // Try Playwright via extension CDP relay first
-  const pwResult = await tryPlaywrightCommand(ctx.cdpRelay, method, params)
+  // Try Playwright via extension CDP relay first, matched to the current project's port
+  const resolved = (() => { try { return resolveProject(ctx) } catch { return null } })()
+  const serverPort = resolved?.server?.port
+  const pwResult = await tryPlaywrightCommand(ctx.cdpRelay, method, params, serverPort)
   if (pwResult !== null) return pwResult
 
   // Fall back to injected client RPC

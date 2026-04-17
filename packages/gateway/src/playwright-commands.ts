@@ -12,15 +12,18 @@ import type { CDPRelay } from './cdp-relay.js'
 /**
  * Try to execute a browser command via Playwright.
  * Returns the result if CDP is available, or null to signal fallback to RPC.
+ *
+ * @param serverPort - dev server port to match against page URLs for multi-tab targeting
  */
 export async function tryPlaywrightCommand(
   relay: CDPRelay | undefined,
   method: string,
   params?: any,
+  serverPort?: number,
 ): Promise<any | null> {
   if (!relay?.isAvailable) return null
 
-  const page = await relay.getPage()
+  const page = await relay.getPage(serverPort)
   if (!page) return null
 
   try {

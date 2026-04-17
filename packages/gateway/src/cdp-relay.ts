@@ -77,10 +77,37 @@ export class CDPRelay {
     return browser.contexts().flatMap((c) => c.pages())
   }
 
-  /** Get first available Playwright page, or null */
-  async getPage(): Promise<Page | null> {
+  /** Get a Playwright page, optionally matched by dev server port */
+  async getPage(serverPort?: number): Promise<Page | null> {
     const pages = await this.getPages()
-    return pages[0] || null
+    if (!pages.length) return null
+    if (!serverPort) return pages[0]
+
+    // Match page URL against the dev server port
+    for (const page of pages) {
+      try {
+        const url = new URL(page.url())
+        if (parseInt(url.port) === serverPort) return page
+      } catch {}
+    }
+
+    // Also check targets — the page URL might be proxied (portless) but the target knows the original
+    for (const page of pages) {
+      // Check if any stored target matches this page and has the right port in its URL
+      for (const target of this.targets.values()) {
+        try {
+          const targetUrl = new URL(target.targetInfo.url)
+          const pageUrl = new URL(page.url())
+          // Same host match — portless URLs share the host
+          if (targetUrl.hostname === pageUrl.hostname || pageUrl.hostname.endsWith('.localhost')) {
+            return page
+          }
+        } catch {}
+      }
+    }
+
+    // Fallback to first page
+    return pages[0]
   }
 
   /** Get a CDP session for a page (using getExistingCDPSession, not newCDPSession) */

@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.0",
+    "@xmorse/playwright-core": "^1.59.10",
     "element-source": "^0.0.5",
     "modern-screenshot": "^4.6.8",
     "ws": "^8.20.0",
@@ -63,7 +64,6 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
-    "@xmorse/playwright-core": "^1.59.10",
     "esbuild": "^0.25.0",
     "playwright-core": "^1.58.2",
     "typescript": "^5.8.0"
