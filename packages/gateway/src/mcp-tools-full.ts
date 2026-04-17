@@ -10,6 +10,7 @@ import { getLogPaths, resolveProject } from './mcp-tools-core.js'
 import { truncateChannelFiles } from './session.js'
 import { queryLogs } from './log-reader.js'
 import { browserCommand } from './rpc-server.js'
+import { tryPlaywrightCommand } from './playwright-commands.js'
 
 function getServerId(ctx: McpContext): string | undefined {
   try {
@@ -25,8 +26,13 @@ function errResult(err: any) {
   return { content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message ?? String(err) }) }], isError: true }
 }
 
-/** Send a command to the browser, returning error result if no browser */
+/** Send a command to the browser. Tries Playwright (CDP) first, falls back to injected client RPC. */
 async function cmd(ctx: McpContext, method: string, params?: any) {
+  // Try Playwright via extension CDP relay first
+  const pwResult = await tryPlaywrightCommand(ctx.cdpRelay, method, params)
+  if (pwResult !== null) return pwResult
+
+  // Fall back to injected client RPC
   const serverId = getServerId(ctx)
   return browserCommand(serverId, method, params)
 }

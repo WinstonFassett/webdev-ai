@@ -15,6 +15,8 @@ export interface McpContext {
   registry?: ServerRegistry
   /** Mutable — set by set_project tool, ?project= param, or roots/list auto-resolve */
   currentProject?: string
+  /** CDP relay for Playwright access when Chrome extension is connected */
+  cdpRelay?: import('./cdp-relay.js').CDPRelay
 }
 
 type Toolset = 'core' | 'full'

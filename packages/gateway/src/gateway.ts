@@ -502,6 +502,7 @@ export async function startGateway(options: GatewayOptions) {
 
   // Setup CDP relay (extension ↔ Playwright bridge)
   const cdpRelay = new CDPRelay({ gatewayPort: port })
+  mcpCtx.cdpRelay = cdpRelay
 
   // Broadcast browser connect/disconnect to admin SSE
   onBrowserEvent((event, data) => {
