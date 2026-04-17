@@ -74,18 +74,19 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
     },
 
     transformIndexHtml() {
+      // Inject meta tag via JS to ensure it works with SSR frameworks (TanStack Start, etc.)
+      // that re-render <head> and may drop statically injected meta tags.
       let initScript = `window.__WEB_DEV_MCP_ORIGIN__ = ${JSON.stringify(gatewayUrl)};`
       if (serverId) {
         initScript += `\nwindow.__WEB_DEV_MCP_SERVER__ = ${JSON.stringify(serverId)};`
       }
-      const metaAttrs: Record<string, string> = {
-        name: 'web-dev-mcp',
-        content: gatewayUrl,
+      initScript += `\n;(function(){var m=document.createElement('meta');m.name='web-dev-mcp';m.content=${JSON.stringify(gatewayUrl)};`
+      if (serverId) {
+        initScript += `m.setAttribute('data-server-id',${JSON.stringify(serverId)});`
       }
-      if (serverId) metaAttrs['data-server-id'] = serverId
+      initScript += `document.head.appendChild(m)})()`
 
       return [
-        { tag: 'meta', attrs: metaAttrs, injectTo: 'head-prepend' as const },
         { tag: 'script', children: initScript, injectTo: 'head-prepend' as const },
         { tag: 'script', attrs: { src: '/__web-dev-mcp.js' }, injectTo: 'head-prepend' as const },
       ]
