@@ -2,7 +2,8 @@
  * CDP Relay — bridges between Playwright and the Chrome extension.
  *
  * Based on Playwriter's proven relay pattern (github.com/remorses/playwriter).
- * Stripped to essentials: no multi-extension, no recording, no Ghost Browser.
+ * Supports multiple concurrent Playwright/CDP clients, each with session-scoped
+ * event routing.
  *
  * Passive/on-demand debugging:
  *   Extension detects dev pages and announces them as "available" without attaching
@@ -12,7 +13,7 @@
  *
  * WebSocket endpoints:
  *   /__cdp-extension     — extension connects here
- *   /devtools/browser/*  — Playwright connects here via connectOverCDP
+ *   /devtools/browser/*  — Playwright clients connect here via connectOverCDP
  *
  * HTTP endpoints (Playwright discovery):
  *   /json/version   — browser info with rewritten webSocketDebuggerUrl
@@ -60,11 +61,23 @@ interface AvailableTab {
   projectId: string
 }
 
+/** Per-client state for each connected Playwright/CDP client */
+interface PlaywrightClient {
+  ws: WebSocket
+  clientId: string
+  /** Sessions this client has been told about (for dedup + filtered routing) */
+  announcedSessions: Set<string>
+  /** Whether this client has called Target.setAutoAttach (subscribes to all targets) */
+  subscribedToAll: boolean
+}
+
+let nextClientId = 1
+
 export class CDPRelay {
   private extensionWs: WebSocket | null = null
-  private playwrightWs: WebSocket | null = null
   private extensionWss: WebSocketServer
   private playwrightWss: WebSocketServer
+  private clients = new Map<string, PlaywrightClient>()
   private targets = new Map<string, StoredTarget>()
   private availableTabs = new Map<number, AvailableTab>()
   private pendingCommands = new Map<number, {
@@ -83,8 +96,6 @@ export class CDPRelay {
   private debuggingRequested = false
   private idleTimeoutMs: number
   private idleTimer: ReturnType<typeof setTimeout> | null = null
-  /** Targets already announced to Playwright — prevents duplicate Target.attachedToTarget */
-  private announcedToPlaywright = new Set<string>()
 
   constructor(options: CDPRelayOptions) {
     this.gatewayPort = options.gatewayPort
@@ -167,7 +178,6 @@ export class CDPRelay {
     this.debuggingActive = false
     this.debuggingRequested = false
     this.targets.clear()
-    this.announcedToPlaywright.clear()
     this.clearIdleTimer()
     this.disconnectPlaywright()
 
@@ -216,12 +226,10 @@ export class CDPRelay {
 
     // Also check targets — the page URL might be proxied (portless) but the target knows the original
     for (const page of pages) {
-      // Check if any stored target matches this page and has the right port in its URL
       for (const target of this.targets.values()) {
         try {
           const targetUrl = new URL(target.targetInfo.url)
           const pageUrl = new URL(page.url())
-          // Same host match — portless URLs share the host
           if (targetUrl.hostname === pageUrl.hostname || pageUrl.hostname.endsWith('.localhost')) {
             return page
           }
@@ -310,6 +318,7 @@ export class CDPRelay {
         targets: this.targets.size,
         available_tabs: this.availableTabs.size,
         extension_connected: this.extensionWs?.readyState === WebSocket.OPEN,
+        clients: this.clients.size,
         idle_timeout_ms: this.idleTimeoutMs,
       }
     }
@@ -368,7 +377,11 @@ export class CDPRelay {
       this.debuggingRequested = false
       this.clearIdleTimer()
       this.disconnectPlaywright()
-      this.playwrightWs?.close()
+      // Close all Playwright clients
+      for (const client of this.clients.values()) {
+        client.ws.close()
+      }
+      this.clients.clear()
     })
   }
 
@@ -405,7 +418,7 @@ export class CDPRelay {
       return
     }
 
-    // CDP event from extension — update state and forward to Playwright
+    // CDP event from extension — update state and forward to subscribed clients
     if (msg.method === 'forwardCDPEvent') {
       const { sessionId, method, params } = msg.params
 
@@ -433,63 +446,74 @@ export class CDPRelay {
       // Emit on internal bus (for Runtime.enable wait pattern)
       this.events.emit('cdp:event', { method, params, sessionId })
 
-      // Forward to Playwright (dedup Target.attachedToTarget to avoid Playwright "Duplicate target" crash)
-      // Only track announcements when Playwright is actually connected
-      if (this.playwrightWs?.readyState === WebSocket.OPEN) {
-        if (method === 'Target.attachedToTarget') {
-          const sid = params.sessionId
-          if (this.announcedToPlaywright.has(sid)) return // already sent
-          this.announcedToPlaywright.add(sid)
-        } else if (method === 'Target.detachedFromTarget') {
-          this.announcedToPlaywright.delete(params.sessionId)
-        }
-      }
+      // Route to subscribed clients
+      const cdpMsg = { method, params, sessionId: sessionId || undefined }
 
-      this.sendToPlaywright({ method, params, sessionId: sessionId || undefined })
+      for (const client of this.clients.values()) {
+        if (client.ws.readyState !== WebSocket.OPEN) continue
+
+        if (method === 'Target.attachedToTarget') {
+          // Only send to clients subscribed to all targets (via setAutoAttach)
+          if (!client.subscribedToAll) continue
+          const sid = params.sessionId
+          if (client.announcedSessions.has(sid)) continue // dedup
+          client.announcedSessions.add(sid)
+        } else if (method === 'Target.detachedFromTarget') {
+          client.announcedSessions.delete(params.sessionId)
+          // Only send to clients that knew about this session
+          if (!client.subscribedToAll) continue
+        } else {
+          // Regular CDP events — route to clients that own this session
+          const eventSession = sessionId || params?.sessionId
+          if (eventSession && !client.announcedSessions.has(eventSession) && !client.subscribedToAll) continue
+        }
+
+        client.ws.send(JSON.stringify(cdpMsg))
+      }
     }
   }
 
-  // ---- Playwright connection ----
+  // ---- Playwright client connections ----
 
   private onPlaywrightConnect(ws: WebSocket) {
-    if (this.playwrightWs) {
-      console.log('[cdp-relay] Replacing existing Playwright connection')
-      this.playwrightWs.close()
+    const clientId = `pw-${nextClientId++}`
+    const client: PlaywrightClient = {
+      ws,
+      clientId,
+      announcedSessions: new Set(),
+      subscribedToAll: false,
     }
-    this.playwrightWs = ws
-    console.log('[cdp-relay] Playwright connected')
+    this.clients.set(clientId, client)
+    console.log(`[cdp-relay] Playwright client connected: ${clientId} (${this.clients.size} total)`)
 
-    // Debugging is activated on-demand when routeCommand encounters target-needing commands
     ws.on('message', (data) => {
       try {
-        this.onPlaywrightMessage(JSON.parse(data.toString()))
+        this.onPlaywrightMessage(client, JSON.parse(data.toString()))
       } catch (e: any) {
-        console.error('[cdp-relay] Bad Playwright message:', e.message)
+        console.error(`[cdp-relay] Bad Playwright message from ${clientId}:`, e.message)
       }
     })
 
     ws.on('close', () => {
-      console.log('[cdp-relay] Playwright disconnected')
-      this.playwrightWs = null
-      this.announcedToPlaywright.clear()
+      this.clients.delete(clientId)
+      console.log(`[cdp-relay] Playwright client disconnected: ${clientId} (${this.clients.size} remaining)`)
     })
   }
 
-  private async onPlaywrightMessage(msg: any) {
+  private async onPlaywrightMessage(client: PlaywrightClient, msg: any) {
     const { id, method, params, sessionId } = msg
 
     try {
       const result = await this.routeCommand(method, params, sessionId)
 
-      // Post-response actions (matching Playwriter's pattern)
-
-      // After Target.setAutoAttach: synthesize Target.attachedToTarget for all known targets
-      // Skip targets already announced (e.g. from concurrent requestDebug flow)
+      // After Target.setAutoAttach: mark client as subscribed and synthesize
+      // Target.attachedToTarget for all known targets not yet announced to this client
       if (method === 'Target.setAutoAttach' && !sessionId) {
+        client.subscribedToAll = true
         for (const target of this.targets.values()) {
-          if (this.announcedToPlaywright.has(target.sessionId)) continue
-          this.announcedToPlaywright.add(target.sessionId)
-          this.sendToPlaywright({
+          if (client.announcedSessions.has(target.sessionId)) continue
+          client.announcedSessions.add(target.sessionId)
+          this.sendToClient(client, {
             method: 'Target.attachedToTarget',
             params: {
               sessionId: target.sessionId,
@@ -500,9 +524,14 @@ export class CDPRelay {
         }
       }
 
-      this.sendToPlaywright({ id, sessionId, result })
+      // Track session ownership when client attaches to a target
+      if (method === 'Target.attachToTarget' && result?.sessionId) {
+        client.announcedSessions.add(result.sessionId)
+      }
+
+      this.sendToClient(client, { id, sessionId, result })
     } catch (e: any) {
-      this.sendToPlaywright({ id, sessionId, error: { message: e.message } })
+      this.sendToClient(client, { id, sessionId, error: { message: e.message } })
     }
   }
 
@@ -571,7 +600,6 @@ export class CDPRelay {
         }
 
       case 'Target.attachToBrowserTarget': {
-        // Browser-level CDP session — return first available target's session
         const t = params?.targetId
           ? [...this.targets.values()].find((t) => t.targetInfo.targetId === params.targetId)
           : [...this.targets.values()][0]
@@ -583,7 +611,6 @@ export class CDPRelay {
 
       case 'Target.setAutoAttach': {
         if (sessionId) {
-          // Child session: just forward
           return this.sendToExtension(method, params, sessionId)
         }
         // Root level: forward to extension (it applies to all tabs), return {}
@@ -595,8 +622,6 @@ export class CDPRelay {
         if (!sessionId) {
           return this.sendToExtension(method, params, sessionId)
         }
-        // Wait for executionContextCreated with isDefault=true after forwarding
-        // This is critical — Playwright blocks until it gets a default execution context
         const contextPromise = new Promise<void>((resolve) => {
           const handler = (event: any) => {
             if (
@@ -635,9 +660,9 @@ export class CDPRelay {
 
   // ---- Transport helpers ----
 
-  private sendToPlaywright(msg: any) {
-    if (this.playwrightWs?.readyState === WebSocket.OPEN) {
-      this.playwrightWs.send(JSON.stringify(msg))
+  private sendToClient(client: PlaywrightClient, msg: any) {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(JSON.stringify(msg))
     }
   }
 
@@ -668,7 +693,10 @@ export class CDPRelay {
     this.clearIdleTimer()
     this.disconnectPlaywright()
     this.extensionWs?.close()
-    this.playwrightWs?.close()
+    for (const client of this.clients.values()) {
+      client.ws.close()
+    }
+    this.clients.clear()
     this.extensionWss.close()
     this.playwrightWss.close()
     for (const pending of this.pendingCommands.values()) {

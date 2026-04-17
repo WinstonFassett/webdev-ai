@@ -242,10 +242,6 @@ async function handleCommand(msg) {
           tabId: tab.tabId,
           sessionId: sessionId !== tab.info.sessionId ? sessionId : undefined,
         }
-        // Disable/re-enable to force re-emission of executionContextCreated events
-        try {
-          await chrome.debugger.sendCommand(debuggerSession, 'Runtime.disable')
-        } catch {}
         result = await chrome.debugger.sendCommand(debuggerSession, 'Runtime.enable', cmdParams)
         break
       }
