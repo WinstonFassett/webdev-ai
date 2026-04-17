@@ -5,7 +5,7 @@
 // Patches console.*, error handlers, fetch/XHR
 // Sends events to gateway via WebSocket, handles commands via JSON protocol
 
-import { resolveElementSource, formatSource } from './source-resolver.js'
+import { resolveElementSource, resolveElementSourceAsync, formatSource } from './source-resolver.js'
 
 ;(function() {
   if ((window as any).__WEB_DEV_MCP_LOADED__) return
@@ -233,7 +233,7 @@ import { resolveElementSource, formatSource } from './source-resolver.js'
       const el = findElement(selector)
       if (!el) return { error: 'Element not found: ' + selector }
       try {
-        const info = resolveElementSource(el)
+        const info = await resolveElementSourceAsync(el)
         if (!info) return { error: 'No source info available (not a framework component or not in dev mode)' }
         return {
           component: info.component,

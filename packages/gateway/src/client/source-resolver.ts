@@ -205,8 +205,9 @@ export function resolveElementSource(el: Element): SourceInfo | null {
  * Falls back to the sync lightweight resolver.
  */
 export async function resolveElementSourceAsync(el: Element): Promise<SourceInfo | null> {
-  // Try element-source first (handles React 19 owner stacks, Next.js server components)
-  if (elementSourceMod) {
+  // Ensure element-source detection has completed
+  const mod = await tryLoadElementSource()
+  if (mod) {
     const rich = await resolveWithElementSource(el)
     if (rich) return rich
   }
