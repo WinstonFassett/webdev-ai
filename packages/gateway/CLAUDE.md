@@ -22,3 +22,7 @@ npm run build   # tsc && node build-client.mjs
 - Browser commands: `{ id, method, params }` → `{ id, result }` or `{ id, error }`. Methods: eval, screenshot, click, fill, navigate, queryDom, getPageMarkdown, etc.
 - Dynamic proxy: URLs like `/https://example.com/page` are proxied with `<base>` tag injection for relative assets. Uses `secure: false` for HTTPS targets.
 - `src/client/index.ts` is the browser-side client. It has `findElement` (text= support), `getPageMarkdown`, `navigate`, screenshot (via modern-screenshot), etc. Changes here require `npm run build` (esbuild rebundle).
+- `src/cdp-relay.ts` — CDP relay bridging Chrome extension ↔ Playwright. Handles Target/Runtime CDP messages locally, forwards everything else to extension. Extension connects at `/__cdp-extension`, Playwright at `/devtools/browser/*`.
+- `src/playwright-commands.ts` — Playwright implementations of MCP tool commands (screenshot, click, fill, etc.). `tryPlaywrightCommand()` returns result or `null` to fall back to RPC.
+- When Chrome extension is connected, full-toolset MCP commands (`screenshot`, `click`, `queryDom`, etc.) auto-use Playwright via CDP for pixel-perfect results. Transparent to the agent.
+- Adapters inject `<meta name="web-dev-mcp">` via JS (not static HTML) to support SSR frameworks (TanStack Start, etc.).

@@ -13,6 +13,7 @@ After changing source, rebuild before testing examples.
 - `packages/gateway/` — Core gateway (`@winstonfassett/web-dev-mcp-gateway`). Has its own [CLAUDE.md](packages/gateway/CLAUDE.md).
 - `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/web-dev-mcp-vite`).
 - `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/web-dev-mcp-nextjs`).
+- `packages/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
 - `packages/proxy/` — Dynamic proxy plugin (not published yet).
 - `examples/vite-app/` — Vite test app
 - `examples/nextjs-turbopack/` — Next.js turbopack test app
@@ -28,7 +29,9 @@ After changing source, rebuild before testing examples.
 - `eval_js` runs JS directly in the browser. `document`/`window` are real browser objects. Promises are auto-awaited.
 - `eval_js` accepts `string | string[]`. Array = auto-waited pipeline (DOM settles between steps).
 - `eval_js` has `browser.*` helpers and persistent `state` object (browser-side, per session).
-- CDP/chobitsu was removed. No CDP endpoint exists anymore.
+- **Chrome extension** (`packages/extension/`) auto-detects dev pages via `<meta name="web-dev-mcp">` tag, attaches `chrome.debugger`, and connects to gateway's CDP relay. When connected, MCP tools (screenshot, click, etc.) auto-upgrade to Playwright API (pixel-perfect screenshots, reliable locators). Falls back to injected client RPC when extension not installed.
+- CDP relay endpoints: `/__cdp-extension` (extension WS), `/devtools/browser/*` (Playwright WS), `/json/version` + `/json/list` (HTTP discovery).
+- Uses `@xmorse/playwright-core` with `getExistingCDPSession` (not `newCDPSession`) — required for relay compatibility.
 - After `navigate()`, browser reconnects — wait ~2-3s before next tool call. SPA route changes via `click` don't disconnect.
 - Gateway `web-dev-mcp-client.js` (~60KB minified) is a bundled browser script injected into pages. Built by `build-client.mjs` using esbuild. Served at `/__web-dev-mcp.js`.
 
