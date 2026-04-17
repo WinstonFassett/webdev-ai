@@ -85,10 +85,11 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
         initScript += `m.setAttribute('data-server-id',${JSON.stringify(serverId)});`
       }
       initScript += `document.head.appendChild(m)})()`
+      // Load client script via JS — SSR frameworks (TanStack Start) drop static script tags
+      initScript += `\n;(function(){var s=document.createElement('script');s.src=${JSON.stringify(gatewayUrl + '/__web-dev-mcp.js')};document.head.appendChild(s)})()`
 
       return [
         { tag: 'script', children: initScript, injectTo: 'head-prepend' as const },
-        { tag: 'script', attrs: { src: '/__web-dev-mcp.js' }, injectTo: 'head-prepend' as const },
       ]
     },
 
