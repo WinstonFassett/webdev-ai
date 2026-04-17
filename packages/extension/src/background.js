@@ -1,22 +1,29 @@
 /**
  * Background service worker — the core of the extension.
  *
- * Lifecycle:
+ * Lifecycle (passive/on-demand):
  * 1. Content script detects a dev page → sends 'dev-page-detected' message
- * 2. We call chrome.debugger.attach() on that tab
- * 3. We open a WebSocket to the gateway's CDP relay endpoint
- * 4. CDP commands from relay → chrome.debugger.sendCommand() on the tab
- * 5. CDP events from chrome.debugger.onEvent → relay
+ * 2. We register the tab as "known" (no debugger attach yet)
+ * 3. We connect to the gateway relay and announce the tab as available
+ * 4. When the relay sends 'requestDebug', we attach chrome.debugger
+ * 5. When the relay sends 'releaseDebug', we detach chrome.debugger
  *
  * Protocol between extension ↔ relay:
+ *   Extension → Relay:  { method: 'tabAvailable', params: { tabId, url, serverId, projectId } }
+ *   Extension → Relay:  { method: 'tabUnavailable', params: { tabId } }
  *   Extension → Relay:  { method: 'forwardCDPEvent', params: { sessionId, method, params } }
+ *   Relay → Extension:  { method: 'requestDebug', params: { tabId? } }
+ *   Relay → Extension:  { method: 'releaseDebug', params: { tabId? } }
  *   Relay → Extension:  { id, method: 'forwardCDPCommand', params: { sessionId, method, params } }
  *   Extension → Relay:  { id, result } or { id, error }
  */
 
 // ---- State ----
 
-/** @type {Map<number, { sessionId: string, targetId: string }>} tabId → session info */
+/** @type {Map<number, { url: string, serverId: string, projectId: string }>} tabId → detected info (not debugging yet) */
+const knownTabs = new Map()
+
+/** @type {Map<number, { sessionId: string, targetId: string }>} tabId → session info (actively debugging) */
 const attachedTabs = new Map()
 
 /** @type {WebSocket | null} */
@@ -37,12 +44,28 @@ let autoAttachParams = null
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'dev-page-detected' && sender.tab?.id) {
     const tabId = sender.tab.id
-    if (attachedTabs.has(tabId)) return // already attached
 
     gatewayUrl = msg.gatewayUrl || 'http://localhost:3333'
     console.log(`[web-dev-mcp] Dev page detected: tab ${tabId} → ${msg.url} (gateway: ${gatewayUrl})`)
 
-    attachTab(tabId)
+    // Register as known (available) — do NOT attach debugger yet
+    knownTabs.set(tabId, {
+      url: msg.url,
+      serverId: msg.serverId || '',
+      projectId: msg.projectId || '',
+    })
+
+    // Connect to relay and announce availability
+    ensureRelayConnection()
+    sendToRelay({
+      method: 'tabAvailable',
+      params: {
+        tabId,
+        url: msg.url,
+        serverId: msg.serverId || '',
+        projectId: msg.projectId || '',
+      },
+    })
   }
 })
 
@@ -86,6 +109,7 @@ chrome.debugger.onDetach.addListener((source, reason) => {
 // ---- Tab lifecycle ----
 
 async function attachTab(tabId) {
+  if (attachedTabs.has(tabId)) return // already attached
   const debuggee = { tabId }
 
   try {
@@ -117,9 +141,6 @@ async function attachTab(tabId) {
 
     attachedTabs.set(tabId, { sessionId, targetId: targetInfo.targetId, url: targetInfo.url, targetInfo })
 
-    // Connect to relay if not already connected
-    ensureRelayConnection()
-
     // Notify relay that this target is attached
     sendToRelay({
       method: 'forwardCDPEvent',
@@ -136,6 +157,55 @@ async function attachTab(tabId) {
     console.log(`[web-dev-mcp] Tab ${tabId} attached: session=${sessionId}, url=${targetInfo.url}`)
   } catch (e) {
     console.error(`[web-dev-mcp] Failed to attach tab ${tabId}:`, e.message)
+  }
+}
+
+async function detachTab(tabId) {
+  const tab = attachedTabs.get(tabId)
+  if (!tab) return
+
+  try {
+    await chrome.debugger.detach({ tabId })
+    console.log(`[web-dev-mcp] Debugger detached from tab ${tabId}`)
+  } catch (e) {
+    console.warn(`[web-dev-mcp] Failed to detach tab ${tabId}:`, e.message)
+  }
+
+  // onDetach listener handles cleanup and relay notification
+}
+
+// ---- On-demand debug control ----
+
+async function handleRequestDebug(params) {
+  const { tabId } = params || {}
+
+  if (tabId) {
+    // Attach specific tab
+    if (knownTabs.has(tabId) || attachedTabs.has(tabId)) {
+      await attachTab(tabId)
+    }
+  } else {
+    // Attach all known tabs
+    const tabIds = [...knownTabs.keys()]
+    for (const id of tabIds) {
+      if (!attachedTabs.has(id)) {
+        await attachTab(id)
+      }
+    }
+  }
+}
+
+async function handleReleaseDebug(params) {
+  const { tabId } = params || {}
+
+  if (tabId) {
+    await detachTab(tabId)
+  } else {
+    // Detach all
+    const tabIds = [...attachedTabs.keys()]
+    for (const id of tabIds) {
+      await detachTab(id)
+    }
   }
 }
 
@@ -248,7 +318,20 @@ function ensureRelayConnection() {
   relayWs.onopen = () => {
     console.log('[web-dev-mcp] Connected to relay')
 
-    // Re-announce all attached tabs
+    // Re-announce all known tabs as available
+    for (const [tabId, info] of knownTabs) {
+      sendToRelay({
+        method: 'tabAvailable',
+        params: {
+          tabId,
+          url: info.url,
+          serverId: info.serverId,
+          projectId: info.projectId,
+        },
+      })
+    }
+
+    // Re-announce all attached tabs (in case they were debugging before reconnect)
     for (const [tabId, info] of attachedTabs) {
       sendToRelay({
         method: 'forwardCDPEvent',
@@ -269,6 +352,10 @@ function ensureRelayConnection() {
       const msg = JSON.parse(event.data)
       if (msg.method === 'forwardCDPCommand') {
         handleCommand(msg)
+      } else if (msg.method === 'requestDebug') {
+        handleRequestDebug(msg.params)
+      } else if (msg.method === 'releaseDebug') {
+        handleReleaseDebug(msg.params)
       } else if (msg.method === 'ping') {
         sendToRelay({ method: 'pong' })
       }
@@ -293,7 +380,7 @@ let reconnectTimer = null
 
 function scheduleReconnect() {
   if (reconnectTimer) return
-  if (attachedTabs.size === 0) return // nothing to reconnect for
+  if (knownTabs.size === 0 && attachedTabs.size === 0) return // nothing to reconnect for
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
     if (!relayWs || relayWs.readyState !== WebSocket.OPEN) {
@@ -312,6 +399,16 @@ function sendToRelay(msg) {
 // ---- Tab removed cleanup ----
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  // Clean up known tab
+  if (knownTabs.has(tabId)) {
+    knownTabs.delete(tabId)
+    sendToRelay({
+      method: 'tabUnavailable',
+      params: { tabId },
+    })
+  }
+
+  // Clean up attached tab
   if (attachedTabs.has(tabId)) {
     const tab = attachedTabs.get(tabId)
     sendToRelay({
@@ -326,4 +423,4 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 })
 
-console.log('[web-dev-mcp] Background service worker loaded')
+console.log('[web-dev-mcp] Background service worker loaded (passive mode)')

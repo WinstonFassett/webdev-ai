@@ -202,6 +202,15 @@ export async function startGateway(options: GatewayOptions) {
   function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
     const url = req.url ?? ''
 
+    // CDP control actions (release debugging, status)
+    const cdpAction = cdpRelay.handleAction(url)
+    if (cdpAction !== null) {
+      addCorsHeaders(res)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(cdpAction))
+      return
+    }
+
     // CDP discovery endpoints (for Playwright connectOverCDP)
     const cdpResponse = cdpRelay.handleHttp(url)
     if (cdpResponse !== null) {

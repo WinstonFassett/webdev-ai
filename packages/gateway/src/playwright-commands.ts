@@ -21,7 +21,17 @@ export async function tryPlaywrightCommand(
   params?: any,
   serverPort?: number,
 ): Promise<any | null> {
-  if (!relay?.isAvailable) return null
+  if (!relay) return null
+
+  // Auto-activate debugging on first CDP tool use (passive mode)
+  if (!relay.isAvailable) {
+    if (!relay.canActivate) return null
+    const activated = await relay.ensureDebugging()
+    if (!activated) return null
+  } else {
+    // Reset idle timer on every tool call
+    relay.ensureDebugging()
+  }
 
   const page = await relay.getPage(serverPort)
   if (!page) return null

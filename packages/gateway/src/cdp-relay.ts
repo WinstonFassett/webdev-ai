@@ -4,6 +4,12 @@
  * Based on Playwriter's proven relay pattern (github.com/remorses/playwriter).
  * Stripped to essentials: no multi-extension, no recording, no Ghost Browser.
  *
+ * Passive/on-demand debugging:
+ *   Extension detects dev pages and announces them as "available" without attaching
+ *   the debugger. The relay requests debugging only when an agent needs CDP access
+ *   (via ensureDebugging()). After a period of inactivity (idle TTL), the relay
+ *   sends 'releaseDebug' to detach the debugger and stop the browser banner.
+ *
  * WebSocket endpoints:
  *   /__cdp-extension     — extension connects here
  *   /devtools/browser/*  — Playwright connects here via connectOverCDP
@@ -13,9 +19,13 @@
  *   /json/list      — list of attached targets
  *
  * Protocol (extension ↔ relay):
- *   EXT→RELAY events:   { method: 'forwardCDPEvent', params: { sessionId, method, params } }
- *   EXT→RELAY responses: { id, result } or { id, error }
- *   RELAY→EXT commands:  { id, method: 'forwardCDPCommand', params: { sessionId, method, params } }
+ *   EXT→RELAY availability: { method: 'tabAvailable', params: { tabId, url, serverId, projectId } }
+ *   EXT→RELAY availability: { method: 'tabUnavailable', params: { tabId } }
+ *   RELAY→EXT control:      { method: 'requestDebug', params: { tabId? } }
+ *   RELAY→EXT control:      { method: 'releaseDebug', params: { tabId? } }
+ *   EXT→RELAY events:       { method: 'forwardCDPEvent', params: { sessionId, method, params } }
+ *   EXT→RELAY responses:    { id, result } or { id, error }
+ *   RELAY→EXT commands:     { id, method: 'forwardCDPCommand', params: { sessionId, method, params } }
  *
  * CDP commands handled locally (not forwarded):
  *   Browser.getVersion, Browser.setDownloadBehavior, Target.setDiscoverTargets,
@@ -34,11 +44,20 @@ import type { Browser, Page, BrowserContext } from '@xmorse/playwright-core'
 
 export interface CDPRelayOptions {
   gatewayPort: number
+  /** Idle timeout in ms before auto-releasing debugging. Default: 5 minutes. 0 = no auto-release. */
+  idleTimeoutMs?: number
 }
 
 interface StoredTarget {
   sessionId: string
   targetInfo: any // Full CDP TargetInfo as received from extension — never reconstruct
+}
+
+interface AvailableTab {
+  tabId: number
+  url: string
+  serverId: string
+  projectId: string
 }
 
 export class CDPRelay {
@@ -47,6 +66,7 @@ export class CDPRelay {
   private extensionWss: WebSocketServer
   private playwrightWss: WebSocketServer
   private targets = new Map<string, StoredTarget>()
+  private availableTabs = new Map<number, AvailableTab>()
   private pendingCommands = new Map<number, {
     resolve: (v: any) => void
     reject: (e: Error) => void
@@ -58,16 +78,119 @@ export class CDPRelay {
   private pwBrowser: Browser | null = null
   private pwConnecting = false
 
+  // On-demand debugging state
+  private debuggingActive = false
+  private debuggingRequested = false
+  private idleTimeoutMs: number
+  private idleTimer: ReturnType<typeof setTimeout> | null = null
+  /** Targets already announced to Playwright — prevents duplicate Target.attachedToTarget */
+  private announcedToPlaywright = new Set<string>()
+
   constructor(options: CDPRelayOptions) {
     this.gatewayPort = options.gatewayPort
+    this.idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60 * 1000 // 5 minutes default
     this.extensionWss = new WebSocketServer({ noServer: true })
     this.playwrightWss = new WebSocketServer({ noServer: true })
     this.extensionWss.on('connection', (ws) => this.onExtensionConnect(ws))
     this.playwrightWss.on('connection', (ws) => this.onPlaywrightConnect(ws))
   }
 
+  /** Debugging is active and has targets */
   get isAvailable(): boolean {
     return this.extensionWs?.readyState === WebSocket.OPEN && this.targets.size > 0
+  }
+
+  /** Extension is connected and has available tabs — debugging can be activated */
+  get canActivate(): boolean {
+    return this.extensionWs?.readyState === WebSocket.OPEN && this.availableTabs.size > 0
+  }
+
+  /**
+   * Ensure debugging is active. If not, request it from the extension and wait
+   * for targets to appear. Returns true if debugging is active after the call.
+   * Resets the idle timer on every call.
+   */
+  async ensureDebugging(): Promise<boolean> {
+    this.resetIdleTimer()
+
+    if (this.isAvailable) return true
+    if (!this.canActivate) return false
+
+    return this.requestDebugging()
+  }
+
+  /**
+   * Request the extension to start debugging all available tabs.
+   * Waits up to 5s for at least one target to appear.
+   */
+  async requestDebugging(): Promise<boolean> {
+    if (!this.extensionWs || this.extensionWs.readyState !== WebSocket.OPEN) return false
+    if (this.debuggingRequested && this.debuggingActive) return true
+
+    console.log('[cdp-relay] Requesting debugging from extension...')
+    this.debuggingRequested = true
+
+    this.extensionWs.send(JSON.stringify({ method: 'requestDebug', params: {} }))
+
+    // Wait for at least one target to appear
+    if (this.targets.size > 0) {
+      this.debuggingActive = true
+      return true
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const handler = (event: any) => {
+        if (event.method === 'Target.attachedToTarget') {
+          clearTimeout(timer)
+          this.events.off('cdp:event', handler)
+          this.debuggingActive = true
+          resolve(true)
+        }
+      }
+      const timer = setTimeout(() => {
+        this.events.off('cdp:event', handler)
+        console.log('[cdp-relay] Timed out waiting for debug targets (5s)')
+        resolve(false)
+      }, 5000)
+      this.events.on('cdp:event', handler)
+    })
+  }
+
+  /**
+   * Release debugging — detach debugger from all tabs.
+   * The extension will send Target.detachedFromTarget events.
+   */
+  releaseDebugging() {
+    if (!this.debuggingActive && !this.debuggingRequested) return
+
+    console.log('[cdp-relay] Releasing debugging...')
+    this.debuggingActive = false
+    this.debuggingRequested = false
+    this.targets.clear()
+    this.announcedToPlaywright.clear()
+    this.clearIdleTimer()
+    this.disconnectPlaywright()
+
+    if (this.extensionWs?.readyState === WebSocket.OPEN) {
+      this.extensionWs.send(JSON.stringify({ method: 'releaseDebug', params: {} }))
+    }
+  }
+
+  private resetIdleTimer() {
+    this.clearIdleTimer()
+    if (this.idleTimeoutMs > 0) {
+      this.idleTimer = setTimeout(() => {
+        console.log(`[cdp-relay] Idle timeout (${this.idleTimeoutMs / 1000}s) — releasing debugging`)
+        this.releaseDebugging()
+      }, this.idleTimeoutMs)
+    }
+  }
+
+  private clearIdleTimer() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer)
+      this.idleTimer = null
+    }
   }
 
   /** Get all Playwright pages via the persistent CDP connection */
@@ -175,6 +298,24 @@ export class CDPRelay {
     return false
   }
 
+  /** Handle CDP control actions. Returns response object or null if not matched. */
+  handleAction(url: string): object | null {
+    if (url === '/__cdp/release') {
+      this.releaseDebugging()
+      return { released: true, was_active: this.debuggingActive || this.targets.size > 0 }
+    }
+    if (url === '/__cdp/status') {
+      return {
+        debugging_active: this.debuggingActive,
+        targets: this.targets.size,
+        available_tabs: this.availableTabs.size,
+        extension_connected: this.extensionWs?.readyState === WebSocket.OPEN,
+        idle_timeout_ms: this.idleTimeoutMs,
+      }
+    }
+    return null
+  }
+
   handleHttp(url: string): object | null {
     const clean = url.replace(/\/$/, '')
 
@@ -222,6 +363,10 @@ export class CDPRelay {
       console.log('[cdp-relay] Extension disconnected')
       this.extensionWs = null
       this.targets.clear()
+      this.availableTabs.clear()
+      this.debuggingActive = false
+      this.debuggingRequested = false
+      this.clearIdleTimer()
       this.disconnectPlaywright()
       this.playwrightWs?.close()
     })
@@ -245,6 +390,21 @@ export class CDPRelay {
 
     if (msg.method === 'pong') return
 
+    // Tab availability announcements
+    if (msg.method === 'tabAvailable') {
+      const { tabId, url, serverId, projectId } = msg.params
+      this.availableTabs.set(tabId, { tabId, url, serverId, projectId })
+      console.log(`[cdp-relay] Tab available: ${tabId} url=${url}`)
+      return
+    }
+
+    if (msg.method === 'tabUnavailable') {
+      const { tabId } = msg.params
+      this.availableTabs.delete(tabId)
+      console.log(`[cdp-relay] Tab unavailable: ${tabId}`)
+      return
+    }
+
     // CDP event from extension — update state and forward to Playwright
     if (msg.method === 'forwardCDPEvent') {
       const { sessionId, method, params } = msg.params
@@ -255,9 +415,13 @@ export class CDPRelay {
           sessionId: params.sessionId,
           targetInfo: { ...params.targetInfo },
         })
+        this.debuggingActive = true
         console.log(`[cdp-relay] Target attached: ${params.sessionId} url=${params.targetInfo?.url}`)
       } else if (method === 'Target.detachedFromTarget') {
         this.targets.delete(params.sessionId)
+        if (this.targets.size === 0) {
+          this.debuggingActive = false
+        }
         console.log(`[cdp-relay] Target detached: ${params.sessionId}`)
       } else if (method === 'Target.targetInfoChanged' && params.targetInfo) {
         const existing = this.targets.get(sessionId)
@@ -269,7 +433,18 @@ export class CDPRelay {
       // Emit on internal bus (for Runtime.enable wait pattern)
       this.events.emit('cdp:event', { method, params, sessionId })
 
-      // Forward to Playwright
+      // Forward to Playwright (dedup Target.attachedToTarget to avoid Playwright "Duplicate target" crash)
+      // Only track announcements when Playwright is actually connected
+      if (this.playwrightWs?.readyState === WebSocket.OPEN) {
+        if (method === 'Target.attachedToTarget') {
+          const sid = params.sessionId
+          if (this.announcedToPlaywright.has(sid)) return // already sent
+          this.announcedToPlaywright.add(sid)
+        } else if (method === 'Target.detachedFromTarget') {
+          this.announcedToPlaywright.delete(params.sessionId)
+        }
+      }
+
       this.sendToPlaywright({ method, params, sessionId: sessionId || undefined })
     }
   }
@@ -284,6 +459,7 @@ export class CDPRelay {
     this.playwrightWs = ws
     console.log('[cdp-relay] Playwright connected')
 
+    // Debugging is activated on-demand when routeCommand encounters target-needing commands
     ws.on('message', (data) => {
       try {
         this.onPlaywrightMessage(JSON.parse(data.toString()))
@@ -295,6 +471,7 @@ export class CDPRelay {
     ws.on('close', () => {
       console.log('[cdp-relay] Playwright disconnected')
       this.playwrightWs = null
+      this.announcedToPlaywright.clear()
     })
   }
 
@@ -307,8 +484,11 @@ export class CDPRelay {
       // Post-response actions (matching Playwriter's pattern)
 
       // After Target.setAutoAttach: synthesize Target.attachedToTarget for all known targets
+      // Skip targets already announced (e.g. from concurrent requestDebug flow)
       if (method === 'Target.setAutoAttach' && !sessionId) {
         for (const target of this.targets.values()) {
+          if (this.announcedToPlaywright.has(target.sessionId)) continue
+          this.announcedToPlaywright.add(target.sessionId)
           this.sendToPlaywright({
             method: 'Target.attachedToTarget',
             params: {
@@ -329,6 +509,17 @@ export class CDPRelay {
   // ---- CDP command routing ----
 
   private async routeCommand(method: string, params: any, sessionId?: string): Promise<any> {
+    // For commands that need targets, ensure debugging is active first
+    if (!this.debuggingActive && this.canActivate) {
+      const needsTargets = [
+        'Target.getTargetInfo', 'Target.getTargets', 'Target.attachToTarget',
+        'Target.attachToBrowserTarget', 'Target.setAutoAttach', 'Runtime.enable',
+      ].includes(method)
+      if (needsTargets || sessionId) {
+        await this.ensureDebugging()
+      }
+    }
+
     switch (method) {
       // --- Handled locally ---
 
@@ -474,6 +665,7 @@ export class CDPRelay {
   }
 
   close() {
+    this.clearIdleTimer()
     this.disconnectPlaywright()
     this.extensionWs?.close()
     this.playwrightWs?.close()
