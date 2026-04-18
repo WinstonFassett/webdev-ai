@@ -84,7 +84,27 @@ export async function loadHistory(serverId?: string) {
   }
 }
 
-/** Clear all entries */
+/** Clear in-memory entries only (does not touch server files) */
 export function clearEntries() {
   _entries.splice(0, _entries.length)
+}
+
+/**
+ * Clear entries client-side AND truncate log files server-side.
+ * After this, reloading the admin shows empty logs.
+ */
+export async function clearAllLogs(opts?: { serverId?: string; channels?: string[] }) {
+  clearEntries()
+  if (opts?.serverId) {
+    _loadedServers.delete(opts.serverId)
+  } else {
+    _loadedServers.clear()
+  }
+  const api = getApi()
+  if (!api) return
+  try {
+    await api.clearLogs(opts)
+  } catch {
+    // Best-effort — client entries already cleared
+  }
 }

@@ -153,6 +153,21 @@ function applyEvent(event: { type: string; data: any }) {
   } else if (event.type === 'browser_disconnect' && event.data.connId) {
     _state.browsers = _state.browsers.filter(b => b.connId !== event.data.connId)
     updateProjects()
+  } else if (event.type === 'server_register' && event.data.server) {
+    const srv = event.data.server as ServerInfo
+    const existing = _state.servers.findIndex(s => s.id === srv.id)
+    if (existing >= 0) {
+      _state.servers[existing] = srv
+      _state.servers = [..._state.servers]
+    } else {
+      _state.servers = [..._state.servers, srv]
+    }
+    _state.mode = _state.servers.length > 0 ? 'hybrid' : 'hub'
+    updateProjects()
+  } else if (event.type === 'server_deregister' && event.data.serverId) {
+    _state.servers = _state.servers.filter(s => s.id !== event.data.serverId)
+    _state.mode = _state.servers.length > 0 ? 'hybrid' : 'hub'
+    updateProjects()
   }
   // Log events → log store (enrich with serverId from browser)
   if (event.type === 'log' && event.data) {

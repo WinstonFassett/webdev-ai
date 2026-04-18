@@ -7,7 +7,7 @@ import type { action } from 'svelte-command-palette'
 import type { RegistryState, ProjectInfo, ServerInfo, BrowserInfo } from './registry.svelte'
 import { navigatePath } from './router'
 import { getRecentHashes } from './nav-history'
-import { clearEntries } from './logs.svelte'
+import { clearAllLogs } from './logs.svelte'
 
 // ── Navigation items ──────────────────────────────────────────
 
@@ -197,10 +197,10 @@ function commandItems(callbacks: CommandPaletteCallbacks): action[] {
     {
       actionId: 'cmd-clear-logs',
       title: 'Clear log stream',
-      description: 'Clear all visible log entries',
+      description: 'Clear all visible log entries and purge server files',
       group: 'Commands',
       keywords: ['clear', 'logs', 'clean'],
-      onRun: () => clearEntries(),
+      onRun: () => { clearAllLogs() },
     },
   ]
 }

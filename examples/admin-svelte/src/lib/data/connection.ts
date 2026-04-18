@@ -44,6 +44,11 @@ export interface AdminAPI {
 
   evalInBrowser(code: string, serverId?: string): any
 
+  clearLogs(opts?: { serverId?: string; channels?: string[] }): Promise<{
+    success: boolean
+    truncated: Record<string, Record<string, number>>
+  }>
+
   subscribe(): ReadableStream<{
     type: string
     data: any

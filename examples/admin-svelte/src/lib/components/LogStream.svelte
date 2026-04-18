@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getLogEntries, clearEntries, loadHistory, type LogEntry } from '../data/logs.svelte'
+  import { getLogEntries, clearAllLogs, loadHistory, type LogEntry } from '../data/logs.svelte'
   import { navigate, currentRoute, routeToHash } from '../data/router'
   import { getRegistry, browserOrdinal } from '../data/registry.svelte'
 
@@ -452,7 +452,7 @@
     </div>
 
     <button
-      onclick={() => clearEntries()}
+      onclick={() => clearAllLogs()}
       class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
       title="Clear all logs"
     >
