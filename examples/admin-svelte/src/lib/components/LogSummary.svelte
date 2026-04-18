@@ -56,7 +56,7 @@
   let total = $derived(scoped.length)
   let errorCount = $derived(scoped.filter(isError).length)
   let warnCount = $derived(scoped.filter(isWarn).length)
-  let recent = $derived(scoped.slice(-previewCount).reverse())
+  let recent = $derived(scoped.slice(-previewCount))
 
   function formatTime(ts: number): string {
     const d = new Date(ts)
