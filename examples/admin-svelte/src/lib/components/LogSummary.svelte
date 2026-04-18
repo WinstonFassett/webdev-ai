@@ -32,6 +32,9 @@
   let allEntries = getLogEntries()
 
   let scoped: LogEntry[] = $derived.by(() => {
+    // Explicit length read so Svelte tracks array mutation
+    const _len = allEntries.length
+    void _len
     let r = allEntries
     if (filter.browserId) r = r.filter(e => e.browserId === filter.browserId || e.connId === filter.browserId)
     if (filter.serverId) r = r.filter(e => e.serverId === filter.serverId)
