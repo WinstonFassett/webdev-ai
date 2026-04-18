@@ -515,7 +515,8 @@ export async function startGateway(options: GatewayOptions) {
 
   // Broadcast browser connect/disconnect to admin SSE
   onBrowserEvent((event, data) => {
-    broadcastToAdmin(event === 'connect' ? 'browser_connect' : 'browser_disconnect', data)
+    const eventName = event === 'connect' ? 'browser_connect' : event === 'init' ? 'browser_init' : 'browser_disconnect'
+    broadcastToAdmin(eventName, data)
   })
 
   // Upgrade handler for events + dev-events + proxy WS

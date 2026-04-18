@@ -59,19 +59,20 @@ export function initProjectLogDir(
 
 export class ServerRegistry {
   private servers = new Map<string, RegisteredServer>()       // server ID → server
-  private directoryIndex = new Map<string, string>()          // directory → server ID
+  private directoryPortIndex = new Map<string, string>()       // "directory:port" → server ID
   private projectIdIndex = new Map<string, string>()          // projectId → server ID
   private connectionOrder: string[] = []
 
   add(server: RegisteredServer): void {
-    // If this project directory already has a server, remove the old one (re-registration)
-    const existingId = this.directoryIndex.get(server.directory)
+    // If this directory+port combo already has a server, remove the old one (re-registration)
+    const dirPortKey = `${server.directory}:${server.port}`
+    const existingId = this.directoryPortIndex.get(dirPortKey)
     if (existingId && existingId !== server.id) {
       this.remove(existingId)
     }
 
     this.servers.set(server.id, server)
-    this.directoryIndex.set(server.directory, server.id)
+    this.directoryPortIndex.set(dirPortKey, server.id)
     this.projectIdIndex.set(server.projectId, server.id)
 
     // Track connection order
@@ -88,9 +89,10 @@ export class ServerRegistry {
     const server = this.servers.get(id)
     if (server) {
       this.servers.delete(id)
-      // Clean up directory index if it still points to this server
-      if (this.directoryIndex.get(server.directory) === id) {
-        this.directoryIndex.delete(server.directory)
+      // Clean up directory:port index if it still points to this server
+      const dirPortKey = `${server.directory}:${server.port}`
+      if (this.directoryPortIndex.get(dirPortKey) === id) {
+        this.directoryPortIndex.delete(dirPortKey)
       }
       if (this.projectIdIndex.get(server.projectId) === id) {
         this.projectIdIndex.delete(server.projectId)
@@ -108,9 +110,10 @@ export class ServerRegistry {
   }
 
   getByDirectory(directory: string): RegisteredServer | undefined {
-    const id = this.directoryIndex.get(directory)
-    if (!id) return undefined
-    return this.servers.get(id)
+    for (const server of this.servers.values()) {
+      if (server.directory === directory) return server
+    }
+    return undefined
   }
 
   getByProjectId(projectId: string): RegisteredServer | undefined {
@@ -147,7 +150,7 @@ export class ServerRegistry {
 
   /** List all registered project directories */
   directories(): string[] {
-    return Array.from(this.directoryIndex.keys())
+    return [...new Set(this.getAll().map(s => s.directory))]
   }
 
   /**

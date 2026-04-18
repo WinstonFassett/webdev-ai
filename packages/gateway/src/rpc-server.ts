@@ -30,7 +30,7 @@ const browsers = new Map<string, BrowserConnection>()
 const connectionOrder: string[] = []
 
 // Hooks for external listeners (admin UI, etc)
-type BrowserEventCallback = (event: 'connect' | 'disconnect', data: { connId: string; browserId: string | null; serverId: string | null }) => void
+type BrowserEventCallback = (event: 'connect' | 'disconnect' | 'init', data: { connId: string; browserId: string | null; serverId: string | null; url?: string | null; title?: string | null }) => void
 const browserEventListeners: Set<BrowserEventCallback> = new Set()
 export function onBrowserEvent(cb: BrowserEventCallback) {
   browserEventListeners.add(cb)
@@ -228,6 +228,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
           if (msg.url) parts.push(msg.url)
           if (serverId) parts.push(`server=${serverId}`)
           console.log(parts.join('  '))
+          for (const cb of browserEventListeners) cb('init', { connId, browserId: conn.browserId, serverId, url: conn.url, title: conn.title })
         }
       } catch {
         // Ignore malformed messages

@@ -103,7 +103,7 @@ export async function refreshRegistry(): Promise<void> {
 }
 
 /** Update registry from a live event (browser connect/disconnect) */
-export function handleRegistryEvent(event: { type: string; connId?: string; browserId?: string; serverId?: string }) {
+export function handleRegistryEvent(event: { type: string; connId?: string; browserId?: string; serverId?: string; url?: string; title?: string }) {
   if (event.type === 'connect' && event.connId) {
     const existing = _state.browsers.find(b => b.connId === event.connId)
     if (!existing) {
@@ -113,6 +113,14 @@ export function handleRegistryEvent(event: { type: string; connId?: string; brow
         serverId: event.serverId ?? null,
         connectedAt: Date.now(),
       }]
+      _state.projects = groupByProject(_state.servers, _state.browsers)
+    }
+  } else if (event.type === 'init' && event.connId) {
+    const existing = _state.browsers.find(b => b.connId === event.connId)
+    if (existing) {
+      if (event.browserId) existing.browserId = event.browserId
+      if (event.serverId) existing.serverId = event.serverId
+      _state.browsers = [..._state.browsers]
       _state.projects = groupByProject(_state.servers, _state.browsers)
     }
   } else if (event.type === 'disconnect' && event.connId) {

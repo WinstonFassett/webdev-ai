@@ -91,6 +91,13 @@ export function startLogging() {
     } catch { /* ignore */ }
   })
 
+  es.addEventListener('browser_init', (e) => {
+    try {
+      const data = JSON.parse(e.data)
+      handleRegistryEvent({ type: 'init', ...data })
+    } catch { /* ignore */ }
+  })
+
   es.addEventListener('browser_disconnect', (e) => {
     try {
       const data = JSON.parse(e.data)
