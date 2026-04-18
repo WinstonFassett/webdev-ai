@@ -452,9 +452,14 @@
     </div>
 
     <button
-      onclick={() => clearAllLogs()}
+      onclick={() => clearAllLogs({
+        browserId: filter.browserId,
+        serverId: filter.serverId,
+        serverIds: filter.serverIds,
+        channels: filter.channels,
+      })}
       class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-      title="Clear all logs"
+      title="Clear logs in view"
     >
       Clear
     </button>

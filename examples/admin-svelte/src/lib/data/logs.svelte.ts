@@ -89,17 +89,52 @@ export function clearEntries() {
   _entries.splice(0, _entries.length)
 }
 
+interface ClearOpts {
+  serverId?: string
+  serverIds?: string[]
+  browserId?: string
+  channels?: string[]
+}
+
 /**
- * Clear entries client-side AND truncate log files server-side.
- * After this, reloading the admin shows empty logs.
+ * Clear entries client-side AND ask the server to persist the clear.
+ * Scope semantics mirror the server's clearLogs():
+ *   - browserId: per-browser checkpoint (no file truncation — browsers share files)
+ *   - serverId or serverIds: truncate NDJSON files
+ *   - none: truncate everything
+ * Channels filter, when present, narrows file truncation to those channels.
  */
-export async function clearAllLogs(opts?: { serverId?: string; channels?: string[] }) {
-  clearEntries()
-  if (opts?.serverId) {
-    _loadedServers.delete(opts.serverId)
-  } else {
-    _loadedServers.clear()
+export async function clearAllLogs(opts?: ClearOpts) {
+  const matches = (e: LogEntry) => {
+    if (opts?.browserId) {
+      if (e.browserId !== opts.browserId && e.connId !== opts.browserId) return false
+    }
+    if (opts?.serverId) {
+      if (e.serverId !== opts.serverId) return false
+    }
+    if (opts?.serverIds?.length) {
+      if (!e.serverId || !opts.serverIds.includes(e.serverId)) return false
+    }
+    if (opts?.channels?.length) {
+      if (!opts.channels.includes(e.channel)) return false
+    }
+    return true
   }
+
+  if (!opts || (!opts.browserId && !opts.serverId && !opts.serverIds?.length && !opts.channels?.length)) {
+    // Global clear
+    clearEntries()
+    _loadedServers.clear()
+  } else {
+    for (let i = _entries.length - 1; i >= 0; i--) {
+      if (matches(_entries[i])) _entries.splice(i, 1)
+    }
+    if (opts.serverId) _loadedServers.delete(opts.serverId)
+    if (opts.serverIds?.length) {
+      for (const id of opts.serverIds) _loadedServers.delete(id)
+    }
+  }
+
   const api = getApi()
   if (!api) return
   try {
