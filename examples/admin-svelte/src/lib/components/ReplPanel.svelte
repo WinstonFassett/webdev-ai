@@ -28,6 +28,71 @@
   let editor: EditorView | null = null
   let selectedTarget: string = $state('') // serverId for eval targeting
 
+  // Command history (persisted to localStorage) — devtools-style recall
+  const CMD_HISTORY_KEY = 'admin-svelte:repl:history'
+  const CMD_HISTORY_CAP = 100
+  let cmdHistory: string[] = []
+  let cmdHistoryIdx = -1 // -1 = not navigating
+  let cmdHistoryStash = '' // text user had in buffer before navigating
+
+  try {
+    const raw = localStorage.getItem(CMD_HISTORY_KEY)
+    if (raw) cmdHistory = JSON.parse(raw)
+  } catch { /* ignore */ }
+
+  function persistCmdHistory() {
+    try { localStorage.setItem(CMD_HISTORY_KEY, JSON.stringify(cmdHistory)) } catch { /* ignore */ }
+  }
+
+  function pushCmdHistory(code: string) {
+    if (!code) return
+    if (cmdHistory[cmdHistory.length - 1] === code) return
+    cmdHistory.push(code)
+    if (cmdHistory.length > CMD_HISTORY_CAP) {
+      cmdHistory.splice(0, cmdHistory.length - CMD_HISTORY_CAP)
+    }
+    persistCmdHistory()
+  }
+
+  function setEditorDoc(code: string, moveCursorToEnd = true) {
+    if (!editor) return
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length, insert: code },
+      selection: moveCursorToEnd ? { anchor: code.length } : undefined,
+    })
+  }
+
+  function recallPrev(view: EditorView): boolean {
+    const cursor = view.state.selection.main.head
+    if (view.state.doc.lineAt(cursor).number !== 1) return false
+    if (cmdHistory.length === 0) return true
+    if (cmdHistoryIdx === -1) {
+      cmdHistoryStash = view.state.doc.toString()
+      cmdHistoryIdx = cmdHistory.length - 1
+    } else if (cmdHistoryIdx > 0) {
+      cmdHistoryIdx--
+    } else {
+      return true
+    }
+    setEditorDoc(cmdHistory[cmdHistoryIdx])
+    return true
+  }
+
+  function recallNext(view: EditorView): boolean {
+    const cursor = view.state.selection.main.head
+    if (view.state.doc.lineAt(cursor).number !== view.state.doc.lines) return false
+    if (cmdHistoryIdx === -1) return false
+    if (cmdHistoryIdx < cmdHistory.length - 1) {
+      cmdHistoryIdx++
+      setEditorDoc(cmdHistory[cmdHistoryIdx])
+    } else {
+      cmdHistoryIdx = -1
+      setEditorDoc(cmdHistoryStash)
+      cmdHistoryStash = ''
+    }
+    return true
+  }
+
   // Derive available browser targets from current route scope
   let availableTargets: Array<{ label: string; serverId: string; browserId: string }> = $derived.by(() => {
     const targets: Array<{ label: string; serverId: string; browserId: string }> = []
@@ -77,6 +142,12 @@
       })
       return
     }
+
+    // Clear editor immediately (devtools behavior); record in recall history
+    pushCmdHistory(code)
+    cmdHistoryIdx = -1
+    cmdHistoryStash = ''
+    setEditorDoc('')
 
     running = true
     try {
@@ -150,6 +221,8 @@
             { key: 'Enter', run: () => { runCode(); return true } },
             { key: 'Shift-Enter', run: insertNewlineAndIndent },
             { key: 'Mod-Enter', run: () => { runCode(); return true } },
+            { key: 'ArrowUp', run: recallPrev },
+            { key: 'ArrowDown', run: recallNext },
           ])),
           EditorView.theme({
             '&': { fontSize: '12px', maxHeight: '120px' },
