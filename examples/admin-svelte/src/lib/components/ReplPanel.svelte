@@ -8,6 +8,7 @@
   import { oneDark } from '@codemirror/theme-one-dark'
   import { keymap } from '@codemirror/view'
   import { insertNewlineAndIndent } from '@codemirror/commands'
+  import { Prec } from '@codemirror/state'
 
   let { route, open = $bindable(false) }: { route: Route; open?: boolean } = $props()
 
@@ -145,11 +146,11 @@
           basicSetup,
           javascript(),
           oneDark,
-          keymap.of([
+          Prec.highest(keymap.of([
             { key: 'Enter', run: () => { runCode(); return true } },
             { key: 'Shift-Enter', run: insertNewlineAndIndent },
             { key: 'Mod-Enter', run: () => { runCode(); return true } },
-          ]),
+          ])),
           EditorView.theme({
             '&': { fontSize: '12px', maxHeight: '120px' },
             '.cm-scroller': { overflow: 'auto' },
