@@ -11,8 +11,20 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
   if ((window as any).__WEB_DEV_MCP_LOADED__) return
   ;(window as any).__WEB_DEV_MCP_LOADED__ = true
 
-  // Cross-origin support: when loaded via framework adapter, gateway is on a different origin
-  const gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+  // Cross-origin support: when loaded via framework adapter, gateway is on a different origin.
+  // If the injected gateway URL points to localhost but the page was loaded from a different
+  // host (e.g. phone accessing via tailnet/LAN IP), rewrite the gateway host to match the
+  // page's host so the browser can reach the gateway.
+  let gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+  if (gatewayOrigin && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    try {
+      const gw = new URL(gatewayOrigin)
+      if (gw.hostname === 'localhost' || gw.hostname === '127.0.0.1') {
+        gw.hostname = window.location.hostname
+        gatewayOrigin = gw.origin
+      }
+    } catch {}
+  }
   const gatewayHost = gatewayOrigin.replace(/^https?:\/\//, '')
   const gatewayWsProtocol = gatewayOrigin.startsWith('https') ? 'wss:' : 'ws:'
 
