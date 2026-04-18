@@ -359,8 +359,8 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
       return serialize(result)
     },
 
-    queryDom(params: { selector?: string, max_depth?: number, max_output?: number, on_limit?: string, include_source?: boolean, attributes?: string[], text_length?: number }) {
-      const { max_depth = 3, attributes = ['id', 'class', 'href', 'src', 'value', 'type', 'placeholder', 'role', 'aria-label'], text_length = 100, include_source = false } = params
+    queryDom(params: { selector?: string, max_depth?: number, max_output?: number, on_limit?: string, include_source?: boolean, attributes?: string[], text_length?: number, visible_only?: boolean }) {
+      const { max_depth = 3, attributes = ['id', 'class', 'href', 'src', 'value', 'type', 'placeholder', 'role', 'aria-label'], text_length = 100, include_source = false, visible_only = true } = params
       const maxOutput = Math.max(1000, Math.min(params.max_output ?? 30000, 200000))
       const onLimit = params.on_limit === 'file' ? 'file' : 'hint'
       const selector = params.selector || 'body'
@@ -398,6 +398,14 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
         const el = node
         const tag = el.tagName.toLowerCase()
         if (['script', 'style', 'svg', 'noscript', 'link', 'meta'].includes(tag)) return ''
+        if (visible_only) {
+          const cs = window.getComputedStyle(el)
+          if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') return ''
+          if (el.getAttribute('aria-hidden') === 'true') return ''
+          if (el.hidden) return ''
+          const rect = el.getBoundingClientRect()
+          if (rect.width === 0 && rect.height === 0 && cs.display !== 'contents') return ''
+        }
         elementCount++
         const pad = '  '.repeat(indent)
         let attrs = ''

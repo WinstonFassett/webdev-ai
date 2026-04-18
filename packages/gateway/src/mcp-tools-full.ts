@@ -173,6 +173,7 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
       include_source: z.boolean().optional().describe('Include source file:line and component name on elements (React, Vue, Svelte, Preact dev mode). Default: false.'),
       attributes: z.array(z.string()).optional().describe('Attributes to include'),
       text_length: z.number().optional().describe('Max text chars per element (default: 100)'),
+      visible_only: z.boolean().optional().describe('Exclude hidden elements (display:none, visibility:hidden, opacity:0, aria-hidden, zero-size). Default: true. Set false to include all elements.'),
     },
     async (args) => {
       try {
@@ -184,6 +185,7 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
           include_source: args.include_source,
           attributes: args.attributes,
           text_length: args.text_length,
+          visible_only: args.visible_only,
         })
         const r = result as any
 
@@ -232,6 +234,28 @@ export function registerFullTools(mcp: McpServer, ctx: McpContext) {
         }
 
         return { content: [{ type: 'text' as const, text: r.html ?? JSON.stringify(r, null, 2) }] }
+      } catch (err: any) { return errResult(err) }
+    },
+  )
+
+  mcp.tool(
+    'a11y_snapshot',
+    'Returns an accessibility tree snapshot with ref IDs on interactive elements. Use refs with click/fill/hover (e.g. selector: "ref=e3") instead of constructing CSS selectors. Requires Chrome extension CDP connection.',
+    {},
+    async () => {
+      try {
+        const result = await cmd(ctx, 'a11ySnapshot')
+        if (!result) {
+          return { content: [{ type: 'text' as const, text: 'a11y_snapshot requires the Chrome extension for CDP access. Install the web-dev-mcp extension and reload the page.' }] }
+        }
+        const r = result as any
+        if (r.error) return errResult(r)
+        return {
+          content: [{
+            type: 'text' as const,
+            text: r.snapshot + `\n\n${r.refCount} interactive elements (use ref=eN with click/fill/hover)`,
+          }],
+        }
       } catch (err: any) { return errResult(err) }
     },
   )

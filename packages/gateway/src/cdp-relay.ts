@@ -97,6 +97,9 @@ export class CDPRelay {
   private idleTimeoutMs: number
   private idleTimer: ReturnType<typeof setTimeout> | null = null
 
+  /** Cached refs from last a11y_snapshot call — maps ref string to element info */
+  refCache: Map<string, import('./playwright-commands.js').RefEntry> | null = null
+
   constructor(options: CDPRelayOptions) {
     this.gatewayPort = options.gatewayPort
     this.idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60 * 1000 // 5 minutes default
