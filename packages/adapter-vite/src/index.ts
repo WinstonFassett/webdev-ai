@@ -17,7 +17,7 @@ import {
 
 export interface ViteAdapterOptions {
   gateway?: string // Gateway URL, default: http://localhost:3333
-  serverType?: 'vite' | 'storybook' | 'generic'
+  serverType?: 'vite' | 'storybook' | 'astro' | 'generic'
   key?: string     // Optional key for disambiguation (e.g. two vite configs in same dir)
 }
 

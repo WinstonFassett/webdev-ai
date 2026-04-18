@@ -5,6 +5,7 @@
     vite: { bg: '#646CFF', fg: '#fff' },
     storybook: { bg: '#FF4785', fg: '#fff' },
     nextjs: { bg: 'var(--fg)', fg: 'var(--bg)' },
+    astro: { bg: '#FF5D01', fg: '#fff' },
     webpack: { bg: '#8DD6F9', fg: '#1a1a2e' },
   }
 

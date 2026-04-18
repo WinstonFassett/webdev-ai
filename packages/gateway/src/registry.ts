@@ -38,7 +38,7 @@ export interface RegisteredServer {
   id: string              // Stable identity: projectId:type or projectId:key
   projectId: string       // Stable short ID: basename-hash4
   directory: string       // Absolute project path (persistent scope)
-  type: 'vite' | 'nextjs' | 'storybook' | 'generic'
+  type: 'vite' | 'nextjs' | 'storybook' | 'astro' | 'generic'
   key?: string            // Optional user-specified key for disambiguation
   name?: string           // Optional friendly name for display
   endpoints: Endpoint[]   // Live processes serving this server (one per port)

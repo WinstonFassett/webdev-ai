@@ -9,12 +9,12 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build -w @winstonfassett/web-dev-mcp-gateway && npm run build -w @winstonfassett/web-dev-mcp-vite && npm run build -w @winstonfassett/web-dev-mcp-nextjs",
+    "build": "npm run build -w @winstonfassett/web-dev-mcp-gateway && npm run build -w @winstonfassett/web-dev-mcp-vite && npm run build -w @winstonfassett/web-dev-mcp-astro && npm run build -w @winstonfassett/web-dev-mcp-nextjs",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
-    "prepublish:check": "npm run build && npm pack --dry-run -w @winstonfassett/web-dev-mcp-gateway && npm pack --dry-run -w @winstonfassett/web-dev-mcp-vite && npm pack --dry-run -w @winstonfassett/web-dev-mcp-nextjs",
-    "publish:all": "npm publish -w @winstonfassett/web-dev-mcp-gateway && npm publish -w @winstonfassett/web-dev-mcp-vite && npm publish -w @winstonfassett/web-dev-mcp-nextjs"
+    "prepublish:check": "npm run build && npm pack --dry-run -w @winstonfassett/web-dev-mcp-gateway && npm pack --dry-run -w @winstonfassett/web-dev-mcp-vite && npm pack --dry-run -w @winstonfassett/web-dev-mcp-astro && npm pack --dry-run -w @winstonfassett/web-dev-mcp-nextjs",
+    "publish:all": "npm publish -w @winstonfassett/web-dev-mcp-gateway && npm publish -w @winstonfassett/web-dev-mcp-vite && npm publish -w @winstonfassett/web-dev-mcp-astro && npm publish -w @winstonfassett/web-dev-mcp-nextjs"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

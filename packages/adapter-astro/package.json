@@ -1,0 +1,59 @@
+{
+  "name": "@winstonfassett/web-dev-mcp-astro",
+  "version": "0.1.0",
+  "description": "Astro integration for web-dev-mcp — live browser observability for AI agents",
+  "type": "module",
+  "engines": { "node": ">=20.6.0" },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "astro",
+    "astro-integration",
+    "mcp",
+    "ai",
+    "devtools",
+    "web-dev-mcp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WinstonFassett/web-dev-mcp.git",
+    "directory": "packages/adapter-astro"
+  },
+  "homepage": "https://github.com/WinstonFassett/web-dev-mcp",
+  "bugs": { "url": "https://github.com/WinstonFassett/web-dev-mcp/issues" },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@winstonfassett/web-dev-mcp-gateway": "^0.1.0",
+    "astro": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "@winstonfassett/web-dev-mcp-vite": "^0.1.0"
+  },
+  "devDependencies": {
+    "@winstonfassett/web-dev-mcp-gateway": "file:../gateway",
+    "@winstonfassett/web-dev-mcp-vite": "file:../adapter-vite",
+    "@types/node": "^25.5.0",
+    "astro": "^5.0.0",
+    "typescript": "^5.8.0"
+  }
+}
