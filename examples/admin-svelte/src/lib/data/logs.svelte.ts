@@ -27,13 +27,13 @@ export function getLogEntries(): LogEntry[] {
 }
 
 /** Push a log event from the live stream */
-export function pushLogEvent(data: { channel: string; payload: any; browserId?: string }) {
+export function pushLogEvent(data: { channel: string; payload: any; browserId?: string; serverId?: string }) {
   const entry: LogEntry = {
     type: 'log',
     channel: data.channel ?? 'unknown',
     payload: data.payload,
     browserId: data.browserId ?? data.payload?.browserId,
-    serverId: data.payload?.serverId,
+    serverId: data.serverId ?? data.payload?.serverId,
     timestamp: Date.now(),
   }
 

@@ -5,6 +5,8 @@
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import RelativeTime from '../lib/components/RelativeTime.svelte'
   import Duration from '../lib/components/Duration.svelte'
+  import ViewTabs from '../lib/components/ViewTabs.svelte'
+  import LogStream from '../lib/components/LogStream.svelte'
   let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
@@ -18,7 +20,13 @@
   })
 </script>
 
-<div class="p-6 space-y-6 overflow-y-auto h-full">
+<div class="flex flex-col h-full overflow-hidden">
+  <ViewTabs {route} />
+
+  {#if route.tab === 'logs' && browser}
+    <LogStream filter={{ browserId: browser.browserId ?? browser.connId }} historyServerIds={server ? [server.id] : []} />
+  {:else}
+  <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !browser}
     <div class="text-muted-foreground/50 text-sm">Browser not found: {route.browserId}</div>
   {:else}
@@ -82,5 +90,7 @@
         </div>
       {/if}
     </div>
+  {/if}
+  </div>
   {/if}
 </div>

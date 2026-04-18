@@ -4,16 +4,18 @@
   interface LogFilter {
     browserId?: string
     serverId?: string
+    serverIds?: string[]
   }
 
-  let { filter = {}, historyServerId }: { filter?: LogFilter; historyServerId?: string } = $props()
+  let { filter = {}, historyServerIds = [] }: { filter?: LogFilter; historyServerIds?: string[] } = $props()
 
-  // Load history from NDJSON files when a serverId is provided
-  let _historyLoaded: string | undefined = $state()
+  // Load history from NDJSON files for each server in scope
+  let _historyLoaded: string = $state('')
   $effect(() => {
-    if (historyServerId && historyServerId !== _historyLoaded) {
-      _historyLoaded = historyServerId
-      loadHistory(historyServerId)
+    const key = historyServerIds.join(',')
+    if (key && key !== _historyLoaded) {
+      _historyLoaded = key
+      historyServerIds.forEach(id => loadHistory(id))
     }
   })
 
@@ -44,6 +46,10 @@
     }
     if (filter.serverId) {
       result = result.filter(e => e.serverId === filter.serverId)
+    }
+    if (filter.serverIds && filter.serverIds.length > 0) {
+      const ids = new Set(filter.serverIds)
+      result = result.filter(e => e.serverId !== undefined && ids.has(e.serverId))
     }
 
     // Exclude 'errors'/'error' channel — duplicates console errors

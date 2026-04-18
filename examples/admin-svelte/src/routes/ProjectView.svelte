@@ -5,10 +5,13 @@
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import StatusDot from '../lib/components/StatusDot.svelte'
   import RelativeTime from '../lib/components/RelativeTime.svelte'
+  import ViewTabs from '../lib/components/ViewTabs.svelte'
+  import LogStream from '../lib/components/LogStream.svelte'
   let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
   let project = $derived(registry.projects.find(p => p.projectId === route.projectId))
+  let serverIds = $derived(project?.servers.map(s => s.id) ?? [])
 
   function browsersForServer(server: ServerInfo) {
     return (project?.browsers ?? [])
@@ -17,7 +20,13 @@
   }
 </script>
 
-<div class="p-6 space-y-6 overflow-y-auto h-full">
+<div class="flex flex-col h-full overflow-hidden">
+  <ViewTabs {route} />
+
+  {#if route.tab === 'logs'}
+    <LogStream filter={{ serverIds }} historyServerIds={serverIds} />
+  {:else}
+  <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !project}
     <div class="text-muted-foreground/50 text-sm">Project not found: {route.projectId}</div>
   {:else}
@@ -94,5 +103,7 @@
         {/if}
       </div>
     {/each}
+  {/if}
+  </div>
   {/if}
 </div>

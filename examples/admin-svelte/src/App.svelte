@@ -113,7 +113,7 @@
         </div>
       {:else}
         <!-- Route content -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 flex flex-col overflow-hidden">
           {#if route.view === 'gateway'}
             <GatewayView {route} />
           {:else if route.view === 'project'}

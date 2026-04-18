@@ -1,13 +1,19 @@
 <script lang="ts">
+  import type { Route } from '../lib/data/router'
   import { getRegistry, projectDisplayName, type ProjectInfo } from '../lib/data/registry.svelte'
   import { navigatePath } from '../lib/data/router'
   import StatusDot from '../lib/components/StatusDot.svelte'
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import Duration from '../lib/components/Duration.svelte'
+  import ViewTabs from '../lib/components/ViewTabs.svelte'
+  import LogStream from '../lib/components/LogStream.svelte'
+
+  let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
   let totalServers = $derived(registry.servers.length)
   let totalBrowsers = $derived(registry.browsers.length)
+  let allServerIds = $derived(registry.servers.map(s => s.id))
 
   function serverTypes(project: ProjectInfo): string[] {
     return [...new Set(project.servers.map(s => s.type))]
@@ -18,8 +24,14 @@
   }
 </script>
 
-<div class="p-6 space-y-6 overflow-y-auto h-full">
-  <!-- Gateway Status -->
+<div class="flex flex-col h-full overflow-hidden">
+  <ViewTabs {route} />
+
+  {#if route.tab === 'logs'}
+    <LogStream historyServerIds={allServerIds} />
+  {:else}
+  <div class="p-6 space-y-6 overflow-y-auto flex-1">
+    <!-- Gateway Status -->
   <div class="border border-border rounded-lg p-4 bg-card">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-sm font-medium text-foreground">Gateway Status</h2>
@@ -87,5 +99,7 @@
     <div class="text-center py-12 text-muted-foreground/50 text-sm">
       No projects connected. Start a dev server with the web-dev-mcp adapter.
     </div>
+  {/if}
+  </div>
   {/if}
 </div>

@@ -154,9 +154,13 @@ function applyEvent(event: { type: string; data: any }) {
     _state.browsers = _state.browsers.filter(b => b.connId !== event.data.connId)
     updateProjects()
   }
-  // Log events → log store
+  // Log events → log store (enrich with serverId from browser)
   if (event.type === 'log' && event.data) {
-    pushLogEvent(event.data)
+    const browserId = event.data.browserId
+    const browser = browserId
+      ? _state.browsers.find(b => (b.browserId ?? b.connId) === browserId || b.connId === browserId)
+      : undefined
+    pushLogEvent({ ...event.data, serverId: browser?.serverId ?? undefined })
   }
 }
 

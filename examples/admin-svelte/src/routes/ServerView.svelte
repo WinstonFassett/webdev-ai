@@ -4,6 +4,8 @@
   import { navigatePath } from '../lib/data/router'
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import RelativeTime from '../lib/components/RelativeTime.svelte'
+  import ViewTabs from '../lib/components/ViewTabs.svelte'
+  import LogStream from '../lib/components/LogStream.svelte'
   let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
@@ -16,7 +18,13 @@
   )
 </script>
 
-<div class="p-6 space-y-6 overflow-y-auto h-full">
+<div class="flex flex-col h-full overflow-hidden">
+  <ViewTabs {route} />
+
+  {#if route.tab === 'logs' && server}
+    <LogStream filter={{ serverId: server.id }} historyServerIds={[server.id]} />
+  {:else}
+  <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !server}
     <div class="text-muted-foreground/50 text-sm">Server not found</div>
   {:else}
@@ -83,5 +91,7 @@
         {/each}
       </div>
     {/if}
+  {/if}
+  </div>
   {/if}
 </div>
