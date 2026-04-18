@@ -504,7 +504,7 @@
           </div>
         {:else}
           {@const entry = row.entry}
-          <div class="flex gap-2 px-3 py-px hover:bg-muted/30 {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
+          <div class="flex gap-2 px-3 py-px hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_20px] {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
             <span class="text-muted-foreground/50 shrink-0 w-16">{formatTime(entry.timestamp)}</span>
             <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
             <span class="shrink-0 w-20 text-muted-foreground/40 truncate">{entry.channel}</span>
