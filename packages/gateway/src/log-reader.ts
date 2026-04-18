@@ -10,6 +10,7 @@ interface LogQuery {
   level?: string
   search?: string
   browserId?: string
+  browserCheckpoints?: Record<string, number>
 }
 
 interface LogResult {
@@ -60,6 +61,15 @@ export function queryLogs(files: Record<string, string>, query: LogQuery): LogRe
       if (payload.browserId !== query.browserId) continue
     }
 
+    if (query.browserCheckpoints) {
+      const payload = event.payload as Record<string, unknown>
+      const bid = payload.browserId as string | undefined
+      if (bid) {
+        const cp = query.browserCheckpoints[bid]
+        if (cp && event.ts <= cp) continue
+      }
+    }
+
     if (query.search) {
       const serialized = JSON.stringify(event.payload)
       if (!serialized.toLowerCase().includes(query.search.toLowerCase())) continue
@@ -97,6 +107,8 @@ export function getDiagnostics(
     ? session.checkpointTs
     : query.since_ts
 
+  const browserCheckpoints = session.browserCheckpoints
+
   const consoleResult = queryLogs(files, {
     channel: 'console',
     sinceId: since_ts ? findFirstIdAfterTs(files.console, since_ts) : 0,
@@ -104,6 +116,7 @@ export function getDiagnostics(
     level: query.level,
     search: query.search,
     browserId: query.browserId,
+    browserCheckpoints,
   })
 
   const errorsResult = queryLogs(files, {
@@ -113,6 +126,7 @@ export function getDiagnostics(
     level: query.level,
     search: query.search,
     browserId: query.browserId,
+    browserCheckpoints,
   })
 
   const networkResult = queryLogs(files, {
@@ -121,6 +135,7 @@ export function getDiagnostics(
     limit: query.limit,
     search: query.search,
     browserId: query.browserId,
+    browserCheckpoints,
   })
 
   const serverConsoleResult = queryLogs(files, {
