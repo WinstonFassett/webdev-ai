@@ -1,6 +1,6 @@
 # web-dev-mcp Communication Architecture
 
-## Current State: Two Paths to the Browser
+## Two Paths to the Browser
 
 ```mermaid
 graph TB
@@ -9,8 +9,8 @@ graph TB
     end
 
     subgraph "Gateway (localhost:3333)"
-        CORE["Core MCP Tools (9)<br/>eval_js, query_dom, screenshot,<br/>a11y_snapshot, get_diagnostics,<br/>clear, set_project, list_projects,<br/>list_browsers"]
-        FULL["Full MCP Tools (+14)<br/>click, fill, hover, navigate,<br/>scroll, press_key, etc.<br/>(training wheels for simple agents)"]
+        CORE["Core MCP Tools (11)<br/>browser_connect, browser_eval,<br/>browser_screenshot, browser_a11y_snapshot,<br/>browser_query, browser_debug,<br/>browser_list, browser_projects,<br/>browser_disconnect, logs"]
+        FULL["Full MCP Tools (+12)<br/>browser_click, browser_fill,<br/>browser_hover, browser_navigate,<br/>browser_scroll, browser_key, etc."]
         CMD["cmd() router"]
         PW["tryPlaywrightCommand()"]
         RPC["RPC WebSocket<br/>/__rpc"]
@@ -50,7 +50,7 @@ graph TB
 
 ### Path 1: RPC (browser-side execution)
 
-Agent → eval_js or query_dom → cmd() → RPC WebSocket → browser client → page JS
+Agent → browser_eval or browser_query → cmd() → RPC WebSocket → browser client → page JS
 
 - Can do anything in the page: DOM, localStorage, framework state
 - `browser.*` helpers: `.click()`, `.fill()`, `.screenshot()`, `.markdown()`, `.navigate()`, `.waitFor()`
@@ -58,13 +58,14 @@ Agent → eval_js or query_dom → cmd() → RPC WebSocket → browser client �
 
 ### Path 2: CDP (engine-side execution)
 
-Agent → a11y_snapshot or screenshot → cmd() → tryPlaywrightCommand() → CDP relay → extension → Chrome engine
+Agent → browser_a11y_snapshot or browser_screenshot → cmd() → tryPlaywrightCommand() → CDP relay → extension → Chrome engine
 
 - Pixel-perfect screenshots via Playwright
 - Accessibility tree via `Accessibility.getFullAXTree()`
 - Ref-based element interaction (a11y_snapshot assigns refs, click/fill/hover accept `ref=eN`)
 - Requires Chrome extension to be installed and connected
 - Falls back to RPC path when extension unavailable
+- Agent controls via `browser_debug({ action: "start" | "stop" | "status" })`
 
 ### How cmd() routes
 
@@ -82,52 +83,77 @@ flowchart LR
 
 ---
 
-## Tool Inventory
+## Session Locking
 
-### Core (9 tools, always available at `/__mcp/sse`)
+MCP sessions lock to a specific server + browser via `browser_connect`. All subsequent commands go to that exact browser.
 
-| Tool | Path | What it does |
-|------|------|-------------|
-| `eval_js` | RPC | Run JS in browser. The universal tool. |
-| `query_dom` | RPC | Pruned DOM tree. `visible_only` (default true) filters hidden elements. |
-| `screenshot` | CDP or RPC | Saves to file, returns path. Presets: viewport/element/full/thumb/hd. |
-| `a11y_snapshot` | CDP only | A11y tree with ref IDs on interactive elements. CDP extension required. |
-| `get_diagnostics` | Server | Browser logs + server logs + build status. |
-| `clear` | Server | Truncate logs, set checkpoint. |
-| `set_project` | Server | Set current project (multi-project support). |
-| `list_projects` | Server | List registered dev servers. |
-| `list_browsers` | Server | List connected browsers. |
+```mermaid
+sequenceDiagram
+    participant Agent
+    participant MCP as MCP Session
+    participant Gateway
 
-### Full (+14 tools, at `/__mcp/sse?tools=full`)
+    Agent->>MCP: browser_connect({ project: "myapp" })
+    MCP->>MCP: Lock currentServer + currentBrowser
+    MCP-->>Agent: { server, browser, cdp, other_browsers }
 
-These duplicate what `eval_js` + `browser.*` can do. They exist for agents that can't write JS.
+    Agent->>MCP: browser_eval({ code: "..." })
+    Note over MCP: Routes to locked browser via<br/>browserCommand({ browserId })
+    MCP-->>Agent: { result }
 
-| Tool | Equivalent eval_js |
-|------|-------------------|
-| `click` | `browser.click(sel)` |
-| `fill` | `browser.fill(sel, val)` |
-| `hover` | via Playwright only |
-| `select_option` | DOM directly |
-| `press_key` | `dispatchEvent` |
-| `navigate` | `browser.navigate(url)` |
-| `go_back` | `history.back()` |
-| `go_forward` | `history.forward()` |
-| `scroll` | `scrollTo()` / `scrollIntoView()` |
-| `get_visible_text` | `el.innerText` |
-| `get_page_markdown` | `browser.markdown()` |
-| `wait_for_condition` | `browser.waitFor()` |
-| `get_session_info` | Server-side state |
-| `get_build_status` | Server-side (overlaps get_diagnostics) |
-| `get_logs` | Server-side (overlaps get_diagnostics) |
+    Agent->>MCP: browser_disconnect()
+    MCP->>MCP: Clear all locks
+```
+
+If no explicit `browser_connect`, first command auto-resolves (single server + latest browser). Multiple servers → error with list.
 
 ---
 
-## The Gap: eval_js Can't Reach CDP
+## Tool Inventory
 
-eval_js runs code in the page's JS context. CDP commands go to the browser engine through a separate channel. They don't talk to each other.
+### Core (11 tools, always available at `/__mcp/sse`)
+
+| Tool | Path | What it does |
+|------|------|-------------|
+| `browser_connect` | Server | Lock session to a server + browser. Returns server info, browser info, CDP status. |
+| `browser_disconnect` | Server | Release session locks. |
+| `browser_list` | Server | List connected browsers with server affiliation. |
+| `browser_projects` | Server | List registered servers with endpoints and browser counts. |
+| `browser_debug` | Server | Start/stop/status CDP debugging. |
+| `browser_eval` | RPC | Run JS in browser. The universal tool. |
+| `browser_screenshot` | CDP or RPC | Saves to file, returns path. |
+| `browser_a11y_snapshot` | CDP only | A11y tree with ref IDs on interactive elements. |
+| `browser_query` | RPC | Pruned DOM tree. `visible_only` (default true). |
+| `logs` | Server | Browser logs + server logs + build status. Get or clear. |
+| `get_element_context` | RPC | Element-grab: source location for selected elements. |
+
+### Full (+12 tools, at `/__mcp/sse?tools=full`)
+
+These duplicate what `browser_eval` + `browser.*` helpers can do. They exist for agents that can't write JS.
+
+| Tool | Equivalent browser_eval |
+|------|------------------------|
+| `browser_click` | `browser.click(sel)` |
+| `browser_fill` | `browser.fill(sel, val)` |
+| `browser_select` | DOM directly |
+| `browser_hover` | via Playwright only |
+| `browser_key` | `dispatchEvent` |
+| `browser_navigate` | `browser.navigate(url)` |
+| `browser_back` | `history.back()` |
+| `browser_forward` | `history.forward()` |
+| `browser_scroll` | `scrollTo()` / `scrollIntoView()` |
+| `browser_text` | `el.innerText` |
+| `browser_markdown` | `browser.markdown()` |
+| `browser_wait` | `browser.waitFor()` |
+
+---
+
+## The Gap: browser_eval Can't Reach CDP
+
+browser_eval runs code in the page's JS context. CDP commands go to the browser engine through a separate channel. They don't talk to each other.
 
 This means any CDP-powered feature (a11y tree, network interception, etc.) requires either:
-1. A dedicated MCP tool (current approach for `a11y_snapshot`)
+1. A dedicated MCP tool (current approach for `browser_a11y_snapshot`)
 2. A reverse-RPC bridge (proposed below)
 
 ### Proposed: browser.cdp() Reverse-RPC Bridge
@@ -163,7 +189,7 @@ graph TB
 Browser client sends a CDP request back to the gateway over the existing WebSocket. Gateway runs it through the relay, returns result. One helper, any CDP command:
 
 ```js
-// via eval_js — no MCP tool needed
+// via browser_eval — no MCP tool needed
 const { nodes } = await browser.cdp('Accessibility.getFullAXTree')
 const metrics = await browser.cdp('Performance.getMetrics')
 ```
@@ -181,18 +207,18 @@ sequenceDiagram
     participant CDP as Chrome Engine
     participant Cache as Ref Cache
 
-    Agent->>Gateway: a11y_snapshot()
+    Agent->>Gateway: browser_a11y_snapshot()
     Gateway->>CDP: Accessibility.getFullAXTree()
     CDP-->>Gateway: AX nodes
     Gateway->>Gateway: Filter tree, assign refs (e0, e1, e2...)
     Gateway->>Cache: Store ref → {role, name, backendDOMNodeId}
     Gateway-->>Agent: Indented tree with [ref=eN]
 
-    Agent->>Gateway: click({selector: "ref=e3"})
+    Agent->>Gateway: browser_click({selector: "ref=e3"})
     Gateway->>Cache: Lookup e3 → {role: "button", name: "Submit"}
     Gateway->>CDP: page.getByRole("button", {name: "Submit"}).click()
     CDP-->>Gateway: Done
     Gateway-->>Agent: {clicked: "ref=e3"}
 ```
 
-Refs are assigned fresh on each `a11y_snapshot` call. Cache lives on CDPRelay, bounded by page element count (typically 10-100 entries). Dies on disconnect.
+Refs are assigned fresh on each `browser_a11y_snapshot` call. Cache lives on CDPRelay, bounded by page element count (typically 10-100 entries). Dies on disconnect.

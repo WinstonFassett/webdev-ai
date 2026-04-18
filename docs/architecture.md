@@ -295,3 +295,138 @@ sequenceDiagram
     Agent->>MCP: browser_disconnect()
     MCP->>MCP: Clear locks
 ```
+
+---
+
+## CDP Relay (Playwright Integration)
+
+When the Chrome extension is installed and connected, browser commands auto-upgrade from injected client RPC to Playwright API (pixel-perfect screenshots, reliable locators, `ref=` targeting from a11y snapshots).
+
+```mermaid
+graph LR
+    subgraph "Chrome Extension"
+        EXT["CDP Bridge"]
+    end
+
+    subgraph "Gateway"
+        RELAY["CDPRelay"]
+        CMD["cmd() in MCP tools"]
+    end
+
+    subgraph "Playwright"
+        PW["@xmorse/playwright-core"]
+    end
+
+    EXT <-->|"/__cdp-extension WS<br/>tabAvailable, forwardCDP*"| RELAY
+    PW <-->|"/devtools/browser/* WS<br/>connectOverCDP"| RELAY
+    CMD -->|"tryPlaywrightCommand()"| RELAY
+    CMD -->|"fallback: browserCommand()"| RPC["/__rpc WS"]
+```
+
+### CDP Flow
+
+1. Extension detects dev pages via `<meta name="web-dev-mcp">` tag
+2. Extension announces tabs to gateway via `tabAvailable` messages
+3. Agent calls `browser_debug({ action: "start" })` — gateway sends `requestDebug` to extension
+4. Extension attaches `chrome.debugger`, starts forwarding CDP events
+5. Playwright connects via `connectOverCDP` to `/devtools/browser/*`
+6. All `browser_*` tools now route through Playwright (transparent to agent)
+7. After idle timeout (5min), gateway sends `releaseDebug` — debugger detaches
+
+### Endpoints
+
+| Endpoint | Transport | Purpose |
+|----------|-----------|---------|
+| `/__cdp-extension` | WebSocket | Extension ↔ relay protocol |
+| `/devtools/browser/*` | WebSocket | Playwright `connectOverCDP` |
+| `/json/version` | HTTP GET | Playwright discovery (browser info) |
+| `/json/list` | HTTP GET | Playwright discovery (target list) |
+
+---
+
+## Gateway URL Auto-Detection
+
+Remote devices (phones on tailnet/LAN) need to reach the gateway. Two mechanisms:
+
+1. **Relative script loading** — Vite adapter loads `/__web-dev-mcp.js` from vite's own origin (relative URL), not from the absolute gateway URL. Vite serves it via middleware.
+
+2. **Hostname rewrite** — Client script detects when page hostname differs from injected gateway hostname. If page is on `100.67.86.117:5173` but gateway was injected as `localhost:3333`, client rewrites to `100.67.86.117:3333`.
+
+```
+Page loaded from: http://100.67.86.117:5173
+Injected gateway: http://localhost:3333
+Client rewrites:  http://100.67.86.117:3333  ← used for WS connections
+```
+
+---
+
+## Log Data Flow
+
+```mermaid
+graph TB
+    subgraph "Browser Page"
+        CONSOLE["console.log/warn/error"]
+        ERRORS["unhandled exceptions"]
+    end
+
+    subgraph "Client Script"
+        PATCH["Patched APIs"]
+    end
+
+    subgraph "Gateway"
+        EVENTS["/__events WS"]
+        ROUTER["Writer Router"]
+    end
+
+    subgraph "Writers (per project)"
+        CW["console.ndjson"]
+        EW["errors.ndjson"]
+        DEW["dev-events.ndjson"]
+        SCW["server-console.ndjson"]
+    end
+
+    subgraph "Consumers"
+        LOGS_TOOL["logs tool"]
+        ADMIN_SSE["Admin SSE"]
+        MCP_NOTIF["MCP notifications"]
+    end
+
+    CONSOLE --> PATCH --> EVENTS --> ROUTER
+    ERRORS --> PATCH
+    ROUTER --> CW & EW & DEW & SCW
+    CW & EW & DEW & SCW --> LOGS_TOOL
+    EVENTS --> ADMIN_SSE
+    EW --> MCP_NOTIF
+```
+
+### NDJSON Format
+
+```json
+{"id": 1, "ts": 1713400000000, "channel": "console", "payload": {"level": "log", "args": ["hello"]}}
+```
+
+### Channels
+
+| Channel | Source | Payload |
+|---------|--------|---------|
+| `console` | Browser `console.*` | `{ level, args[], stack? }` |
+| `errors` | Unhandled exceptions/rejections, console.error | `{ type, message, stack?, file?, line? }` |
+| `server-console` | Dev server stdout (via adapter) | `{ level, args[], source: 'server' }` |
+| `dev-events` | Build/HMR events (via adapter) | `{ type: 'build:start\|update\|error\|complete', error?, modules? }` |
+| `network` | fetch/XHR (optional) | `{ method, url, status, duration, initiator }` |
+
+---
+
+## Admin Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/__admin/api` | GET | Full state: servers, browsers, uptime |
+| `/__admin/events` | GET (SSE) | Real-time: browser_connect, browser_init, browser_disconnect, log |
+| `/__admin/logs` | GET | Query historical logs |
+| `/__admin/eval` | POST | Execute JS in a browser `{ code, serverId }` |
+| `/__gateway/register` | POST | Register a dev server endpoint |
+| `/__gateway/unregister/:id` | POST | Remove a dev server |
+| `/__gateway/servers` | GET | List registered servers |
+| `/__gateway/init` | GET | Client config (serverId, gatewayUrl) |
+| `/__status` | GET | Gateway status + session info |
