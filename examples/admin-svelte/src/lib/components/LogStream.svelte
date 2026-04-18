@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLogEntries, clearEntries, loadHistory, type LogEntry } from '../data/logs.svelte'
-  import { navigate, currentRoute } from '../data/router'
+  import { navigate, currentRoute, routeToHash } from '../data/router'
+  import { getRegistry, browserOrdinal } from '../data/registry.svelte'
 
   interface LogFilter {
     browserId?: string
@@ -11,6 +12,66 @@
 
   let { filter = {}, historyServerIds = [] }: { filter?: LogFilter; historyServerIds?: string[] } = $props()
 
+  const registry = getRegistry()
+
+  interface SourceInfo {
+    projectId?: string
+    projectLabel?: string
+    projectHref?: string
+    serverId?: string
+    serverLabel?: string
+    serverHref?: string
+    browserKey?: string
+    browserLabel?: string
+    browserHref?: string
+  }
+
+  function lookupSource(e: LogEntry): SourceInfo {
+    const info: SourceInfo = {}
+
+    if (e.serverId) {
+      info.serverId = e.serverId
+      const srv = registry.servers.find(s => s.id === e.serverId)
+      if (srv) {
+        info.projectId = srv.projectId
+        const proj = registry.projects.find(p => p.projectId === srv.projectId)
+        info.projectLabel = proj && proj.name && proj.name !== proj.projectId
+          ? proj.name
+          : (srv.directory?.split('/').pop() ?? srv.projectId)
+        info.projectHref = routeToHash({ view: 'project', projectId: srv.projectId, tab: 'logs' })
+        info.serverLabel = srv.type
+        info.serverHref = routeToHash({ view: 'server', projectId: srv.projectId, type: srv.type, tab: 'logs' })
+      } else {
+        info.serverLabel = e.serverId
+      }
+    }
+
+    const bid = e.browserId ?? e.connId
+    if (bid) {
+      const br = registry.browsers.find(b => (b.browserId ?? b.connId) === bid || b.connId === bid)
+      if (br && br.serverId) {
+        const siblings = registry.browsers.filter(b => b.serverId === br.serverId)
+        const key = br.browserId ?? br.connId
+        info.browserKey = key
+        info.browserLabel = `Browser ${browserOrdinal(br, siblings)}`
+        const brSrv = registry.servers.find(s => s.id === br.serverId)
+        if (brSrv) {
+          info.browserHref = routeToHash({ view: 'browser', projectId: brSrv.projectId, type: brSrv.type, browserId: key, tab: 'logs' })
+        }
+      } else {
+        info.browserKey = bid
+        info.browserLabel = `Browser ·${bid.slice(0, 6)}`
+      }
+    } else if (e.serverId) {
+      // No browser on this entry → it's coming from the dev server itself
+      info.browserKey = `${e.serverId}:server`
+      info.browserLabel = 'Server'
+      info.browserHref = info.serverHref
+    }
+
+    return info
+  }
+
   function setChannels(channels: string[] | undefined) {
     const r = currentRoute()
     navigate({ ...r, channels: channels && channels.length > 0 ? channels : undefined })
@@ -20,6 +81,7 @@
     const current = new Set(filter.channels ?? allChannels)
     if (current.has(ch)) current.delete(ch)
     else current.add(ch)
+    // If the new set equals the full set, clear the filter (means "all")
     const next = [...current]
     if (next.length === allChannels.length && allChannels.every(c => current.has(c))) {
       setChannels(undefined)
@@ -67,8 +129,8 @@
   // All entries from the global stream
   let allEntries = getLogEntries()
 
-  // Entries after scope filter but BEFORE channels filter — used to enumerate
-  // available channels in the current scope.
+  // Entries after scope filter (browser/server) but BEFORE channels filter —
+  // used to enumerate available channels in the current scope.
   let scopedEntries: LogEntry[] = $derived.by(() => {
     const _len = allEntries.length
     void _len
@@ -127,6 +189,77 @@
     }
 
     return result
+  })
+
+  // Which levels actually vary in the currently-filtered data.
+  // A level that is constrained to a single value (either by the view's filter
+  // or because the data only contains one value) doesn't need a header.
+  let varying = $derived.by(() => {
+    const projects = new Set<string>()
+    const servers = new Set<string>()
+    const browsers = new Set<string>()
+    for (const e of filteredEntries) {
+      const src = lookupSource(e)
+      if (src.projectId) projects.add(src.projectId)
+      if (src.serverId) servers.add(src.serverId)
+      if (src.browserKey) browsers.add(src.browserKey)
+    }
+    return {
+      project: projects.size > 1,
+      server: servers.size > 1,
+      browser: browsers.size > 1,
+    }
+  })
+
+  interface HdrPart { label: string; href?: string }
+
+  type Row =
+    | { kind: 'hdr'; key: string; project?: HdrPart; server?: HdrPart; browser?: HdrPart }
+    | { kind: 'entry'; key: string; entry: LogEntry }
+
+  // One header row per source-transition, showing only the levels that vary.
+  // Headers are sticky at top-0 so DOM order replaces them as the scroll passes boundaries.
+  let rows: Row[] = $derived.by(() => {
+    const v = varying
+    const out: Row[] = []
+    if (!v.project && !v.server && !v.browser) {
+      for (let i = 0; i < filteredEntries.length; i++) {
+        out.push({ kind: 'entry', key: `e:${i}`, entry: filteredEntries[i] })
+      }
+      return out
+    }
+
+    let prevProject: string | undefined
+    let prevServer: string | undefined
+    let prevBrowser: string | undefined
+    for (let i = 0; i < filteredEntries.length; i++) {
+      const e = filteredEntries[i]
+      const src = lookupSource(e)
+
+      const projChanged = v.project && src.projectId !== prevProject
+      const srvChanged = v.server && src.serverId !== prevServer
+      const brChanged = v.browser && src.browserKey !== prevBrowser
+
+      if (projChanged || srvChanged || brChanged) {
+        const projLabel = v.project ? (src.projectLabel ?? src.projectId) : undefined
+        const srvLabel = v.server ? (src.serverLabel ?? src.serverId) : undefined
+        const brLabel = v.browser ? (src.browserLabel ?? src.browserKey) : undefined
+        out.push({
+          kind: 'hdr',
+          key: `h:${i}`,
+          project: projLabel ? { label: projLabel, href: src.projectHref } : undefined,
+          server: srvLabel ? { label: srvLabel, href: src.serverHref } : undefined,
+          browser: brLabel ? { label: brLabel, href: src.browserHref } : undefined,
+        })
+      }
+
+      if (v.project) prevProject = src.projectId
+      if (v.server) prevServer = src.serverId
+      if (v.browser) prevBrowser = src.browserKey
+
+      out.push({ kind: 'entry', key: `e:${i}`, entry: e })
+    }
+    return out
   })
 
   // Auto-scroll on new entries
@@ -270,7 +403,7 @@
         <span class="text-muted-foreground/60">▾</span>
       </button>
       {#if pickerOpen}
-        <div class="absolute left-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-10 py-1 min-w-48 max-h-80 overflow-y-auto">
+        <div class="absolute left-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-30 py-1 min-w-48 max-h-80 overflow-y-auto">
           {#if filter.channels && filter.channels.length > 0}
             <div class="flex items-center justify-end px-3 py-1 border-b border-border">
               <button
@@ -310,7 +443,7 @@
         title="Export logs"
       >Export</button>
       {#if exportOpen}
-        <div class="absolute right-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-10 py-1 min-w-24">
+        <div class="absolute right-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-30 py-1 min-w-24">
           <button onclick={exportJsonl} class="block w-full text-left px-3 py-1 text-[11px] text-foreground hover:bg-muted/50">.jsonl</button>
           <button onclick={exportText} class="block w-full text-left px-3 py-1 text-[11px] text-foreground hover:bg-muted/50">.log</button>
           <button onclick={exportCsv} class="block w-full text-left px-3 py-1 text-[11px] text-foreground hover:bg-muted/50">.csv</button>
@@ -338,13 +471,46 @@
         Waiting for logs...
       </div>
     {:else}
-      {#each filteredEntries as entry, i (i)}
-        <div class="flex gap-2 px-3 py-px hover:bg-muted/30 {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
-          <span class="text-muted-foreground/50 shrink-0 w-16">{formatTime(entry.timestamp)}</span>
-          <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
-          <span class="shrink-0 w-20 text-muted-foreground/40 truncate">{entry.channel}</span>
-          <span class="flex-1 truncate {levelColor(entry)}">{entryMessage(entry)}</span>
-        </div>
+      {#each rows as row (row.key)}
+        {#if row.kind === 'hdr'}
+          <div class="sticky top-0 z-20 flex items-center gap-2 px-3 h-[18px] bg-background border-b border-border/40 text-[10px] uppercase tracking-wide">
+            {#if row.project}
+              {#if row.project.href}
+                <a href={row.project.href} class="font-semibold text-foreground hover:underline">{row.project.label}</a>
+              {:else}
+                <span class="font-semibold text-foreground">{row.project.label}</span>
+              {/if}
+            {/if}
+            {#if row.project && (row.server || row.browser)}
+              <span class="text-muted-foreground/40">·</span>
+            {/if}
+            {#if row.server}
+              {#if row.server.href}
+                <a href={row.server.href} class="text-muted-foreground hover:text-foreground hover:underline">{row.server.label}</a>
+              {:else}
+                <span class="text-muted-foreground">{row.server.label}</span>
+              {/if}
+            {/if}
+            {#if row.server && row.browser}
+              <span class="text-muted-foreground/40">·</span>
+            {/if}
+            {#if row.browser}
+              {#if row.browser.href}
+                <a href={row.browser.href} class="text-muted-foreground/70 hover:text-foreground hover:underline">{row.browser.label}</a>
+              {:else}
+                <span class="text-muted-foreground/70">{row.browser.label}</span>
+              {/if}
+            {/if}
+          </div>
+        {:else}
+          {@const entry = row.entry}
+          <div class="flex gap-2 px-3 py-px hover:bg-muted/30 {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
+            <span class="text-muted-foreground/50 shrink-0 w-16">{formatTime(entry.timestamp)}</span>
+            <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
+            <span class="shrink-0 w-20 text-muted-foreground/40 truncate">{entry.channel}</span>
+            <span class="flex-1 truncate {levelColor(entry)}">{entryMessage(entry)}</span>
+          </div>
+        {/if}
       {/each}
     {/if}
   </div>
