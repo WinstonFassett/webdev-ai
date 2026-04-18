@@ -271,17 +271,14 @@
       </button>
       {#if pickerOpen}
         <div class="absolute left-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-10 py-1 min-w-48 max-h-80 overflow-y-auto">
-          <div class="flex items-center justify-between px-3 py-1 border-b border-border">
-            <button
-              onclick={() => setChannels(undefined)}
-              class="text-[10px] text-muted-foreground hover:text-foreground"
-            >All</button>
-            <button
-              onclick={() => setChannels([])}
-              class="text-[10px] text-muted-foreground hover:text-foreground"
-              title="Clear selection"
-            >None</button>
-          </div>
+          {#if filter.channels && filter.channels.length > 0}
+            <div class="flex items-center justify-end px-3 py-1 border-b border-border">
+              <button
+                onclick={() => setChannels(undefined)}
+                class="text-[10px] text-muted-foreground hover:text-foreground"
+              >Clear filter</button>
+            </div>
+          {/if}
           {#if allChannels.length === 0}
             <div class="px-3 py-2 text-[11px] text-muted-foreground/50">No channels yet</div>
           {:else}

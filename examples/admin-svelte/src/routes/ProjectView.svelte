@@ -25,7 +25,7 @@
   <ViewTabs {route} />
 
   {#if route.tab === 'logs'}
-    <LogStream filter={{ serverIds }} historyServerIds={serverIds} />
+    <LogStream filter={{ serverIds, channels: route.channels }} historyServerIds={serverIds} />
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !project}

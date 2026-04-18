@@ -29,7 +29,7 @@
   <ViewTabs {route} />
 
   {#if route.tab === 'logs'}
-    <LogStream historyServerIds={allServerIds} />
+    <LogStream filter={{ channels: route.channels }} historyServerIds={allServerIds} />
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
     <!-- Gateway Status -->
