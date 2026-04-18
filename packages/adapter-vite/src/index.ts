@@ -9,6 +9,7 @@ import {
   registerWithRetry,
   patchConsole,
   connectDevEvents,
+  makeServerId,
   type RegistrationPayload,
   type DevEventsHandle,
   type ConnectDevEventsOptions,
@@ -17,6 +18,7 @@ import {
 export interface ViteAdapterOptions {
   gateway?: string // Gateway URL, default: http://localhost:3333
   serverType?: 'vite' | 'storybook' | 'generic'
+  key?: string     // Optional key for disambiguation (e.g. two vite configs in same dir)
 }
 
 export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
@@ -32,7 +34,8 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
 
     configResolved(config) {
       resolvedConfig = config
-      serverId = String(process.pid)
+      const serverType = options.serverType ?? 'vite'
+      serverId = makeServerId(config.root, serverType, options.key)
       ;(config.server as any).forwardConsole = false
     },
 
@@ -45,11 +48,12 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
 
       // Register with gateway (retry loop)
       const payload: RegistrationPayload = {
-        id: serverId!,
+        serverId: serverId!,
         type: options.serverType ?? 'vite',
         port: resolvedConfig!.server.port ?? 5173,
         pid: process.pid,
         directory: resolvedConfig!.root,
+        key: options.key,
       }
       registerWithRetry(gatewayUrl, payload)
 

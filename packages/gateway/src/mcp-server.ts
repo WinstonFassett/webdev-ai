@@ -3,7 +3,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SessionState } from './session.js'
 import type { DevEventsWriter } from './writers/dev-events.js'
-import type { ServerRegistry } from './registry.js'
+import type { ServerRegistry, RegisteredServer } from './registry.js'
 import { registerCoreTools } from './mcp-tools-core.js'
 import { registerFullTools } from './mcp-tools-full.js'
 import { registerElementGrabTool } from './element-grab.js'
@@ -13,10 +13,14 @@ export interface McpContext {
   connectedClients: number
   devEventsWriter?: DevEventsWriter
   registry?: ServerRegistry
-  /** Mutable — set by set_project tool, ?project= param, or roots/list auto-resolve */
-  currentProject?: string
   /** CDP relay for Playwright access when Chrome extension is connected */
   cdpRelay?: import('./cdp-relay.js').CDPRelay
+  /** Mutable — set by browser_connect or auto-resolved */
+  currentProject?: string
+  /** Mutable — locked server identity (projectId:type) */
+  currentServer?: string
+  /** Mutable — locked browser ID for this session */
+  currentBrowser?: string
 }
 
 type Toolset = 'core' | 'full'

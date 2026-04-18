@@ -14,7 +14,7 @@ import { NetworkWriter } from './writers/network.js'
 import { DevEventsWriter, type BuildEventPayload } from './writers/dev-events.js'
 import { ServerConsoleWriter } from './writers/server-console.js'
 import { createMcpMiddleware, sendNotificationToAll, type McpContext } from './mcp-server.js'
-import { setupRpcWebSocket, onBrowserEvent, emitLogEvent, removeBrowsersByServer, evictOrphanBrowsers } from './rpc-server.js'
+import { setupRpcWebSocket, onBrowserEvent, emitLogEvent } from './rpc-server.js'
 import { handleAdmin } from './admin.js'
 import { ServerRegistry, type RegisteredServer, makeServerId, makeProjectId, initProjectLogDir } from './registry.js'
 import { handleElementGrabRequest } from './element-grab.js'
@@ -151,21 +151,13 @@ export async function startGateway(options: GatewayOptions) {
   // Create server registry for hybrid architecture
   const registry = new ServerRegistry()
 
-  // Start heartbeat to clean up dead servers and their orphaned browsers
+  // Heartbeat: clean up dead endpoints (process died without unregistering)
+  // Server entries are never removed by heartbeat — only endpoints.
+  // Browsers are never evicted — they disconnect naturally when tabs close.
   const heartbeatInterval = setInterval(() => {
-    const removedIds = registry.cleanupDeadServers()
-    for (const id of removedIds) {
-      removeBrowsersByServer(id)
-    }
-    if (removedIds.length > 0) {
-      console.log(`[registry] Cleaned up ${removedIds.length} dead server(s)`)
-    }
-
-    // Evict browsers whose serverId doesn't match any registered server
-    const registeredIds = new Set(registry.getAll().map(s => s.id))
-    const orphans = evictOrphanBrowsers(registeredIds)
-    if (orphans > 0) {
-      console.log(`[registry] Evicted ${orphans} orphan browser(s)`)
+    const cleaned = registry.cleanupDeadEndpoints()
+    if (cleaned.length > 0) {
+      console.log(`[registry] Cleaned up ${cleaned.length} dead endpoint(s)`)
     }
   }, 5000)
 
@@ -296,37 +288,45 @@ export async function startGateway(options: GatewayOptions) {
           if (options.network) channels.push('network')
           const { logDir, logPaths } = initProjectLogDir(data.directory, channels)
 
-          const server: RegisteredServer = {
-            id: data.id || makeServerId(data.pid),
-            projectId: makeProjectId(data.directory),
+          // Compute stable server identity
+          const serverId = data.serverId || makeServerId(data.directory, data.type, data.key)
+          const projectId = makeProjectId(data.directory)
+
+          const serverInfo: Omit<RegisteredServer, 'endpoints'> = {
+            id: serverId,
+            projectId,
             directory: data.directory,
             type: data.type as RegisteredServer['type'],
-            port: data.port,
-            pid: data.pid,
+            key: data.key,
             name: data.name,
-            rpcEndpoint: data.rpcEndpoint,
-            mcpEndpoint: data.mcpEndpoint,
             logPaths,
             logDir,
+          }
+
+          const endpoint = {
+            port: data.port,
+            pid: data.pid,
             registeredAt: Date.now(),
           }
 
-          registry.add(server)
+          registry.addEndpoint(serverId, serverInfo, endpoint)
 
           // Create per-project writers (keyed by directory — logs are project-scoped)
-          projectWriters.set(server.directory, {
-            console: new ConsoleWriter(logPaths.console, options.maxFileSizeMb),
-            errors: new ErrorsWriter(logPaths.errors, options.maxFileSizeMb),
-            devEvents: new DevEventsWriter(logPaths['dev-events'], options.maxFileSizeMb),
-            serverConsole: new ServerConsoleWriter(logPaths['server-console'], options.maxFileSizeMb),
-            network: logPaths.network ? new NetworkWriter(logPaths.network, options.maxFileSizeMb) : undefined,
-          })
+          if (!projectWriters.has(data.directory)) {
+            projectWriters.set(data.directory, {
+              console: new ConsoleWriter(logPaths.console, options.maxFileSizeMb),
+              errors: new ErrorsWriter(logPaths.errors, options.maxFileSizeMb),
+              devEvents: new DevEventsWriter(logPaths['dev-events'], options.maxFileSizeMb),
+              serverConsole: new ServerConsoleWriter(logPaths['server-console'], options.maxFileSizeMb),
+              network: logPaths.network ? new NetworkWriter(logPaths.network, options.maxFileSizeMb) : undefined,
+            })
+          }
 
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({
             success: true,
-            serverId: server.id,
-            projectId: server.projectId,
+            serverId,
+            projectId,
             logDir,
             gatewayMcpUrl: `${serverUrl}${mcpPath}/sse`,
             gatewayRpcUrl: `${serverUrl.replace('http', 'ws')}/__rpc`,
@@ -367,7 +367,7 @@ export async function startGateway(options: GatewayOptions) {
       if (serverId && registry.has(serverId)) {
         const server = registry.get(serverId)
         registry.remove(serverId)
-        removeBrowsersByServer(serverId)
+        // Don't remove browsers — they disconnect naturally
         if (server) projectWriters.delete(server.directory)
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ success: true }))
@@ -544,11 +544,12 @@ export async function startGateway(options: GatewayOptions) {
   })
 
   eventsWss.on('connection', (ws, request) => {
-    // Parse serverId from query param, resolve to project directory for writer routing
+    // Parse stable server identity from query param, resolve to project directory for writer routing
     const reqUrl = (request as any).url ?? ''
     const serverMatch = reqUrl.match(/[?&]server=([^&]+)/)
     const serverId = serverMatch ? decodeURIComponent(serverMatch[1]) : null
-    const projectDir = serverId ? registry.get(serverId)?.directory : null
+    const server = serverId ? registry.get(serverId) : null
+    const projectDir = server?.directory ?? null
 
     ws.on('message', (data) => {
       try {
@@ -564,15 +565,13 @@ export async function startGateway(options: GatewayOptions) {
           w.console.write(payload)
         } else if (channel === 'error') {
           w.errors.write(payload)
-          const server = serverId ? registry.get(serverId) : null
           const logFile = server?.logPaths?.errors ?? session.files.errors ?? ''
-          sendNotificationToAll('errors', payload.message ?? 'Error', logFile, `get_diagnostics`)
+          sendNotificationToAll('errors', payload.message ?? 'Error', logFile, `logs`)
         } else if (channel === 'server-console') {
           w.serverConsole.write(payload)
           if (payload.level === 'error') {
-            const server = serverId ? registry.get(serverId) : null
             const logFile = server?.logPaths?.['server-console'] ?? session.files['server-console'] ?? ''
-            sendNotificationToAll('server', payload.args?.join(' ') ?? 'Server error', logFile, `get_diagnostics`)
+            sendNotificationToAll('server', payload.args?.join(' ') ?? 'Server error', logFile, `logs`)
           }
         } else if (channel === 'network' && w.network) {
           w.network.write(payload)
@@ -588,11 +587,12 @@ export async function startGateway(options: GatewayOptions) {
   })
 
   devEventsWss.on('connection', (ws, request) => {
-    // Parse serverId from query param, resolve to project directory
+    // Parse stable server identity from query param, resolve to project directory
     const reqUrl = (request as any).url ?? ''
     const serverMatch = reqUrl.match(/[?&]server=([^&]+)/)
     const serverId = serverMatch ? decodeURIComponent(serverMatch[1]) : null
-    const projectDir = serverId ? registry.get(serverId)?.directory : null
+    const server = serverId ? registry.get(serverId) : null
+    const projectDir = server?.directory ?? null
 
     console.log(`[web-dev-mcp] Dev adapter connected${serverId ? ` (server: ${serverId})` : ''}`)
 
@@ -603,9 +603,8 @@ export async function startGateway(options: GatewayOptions) {
         w.devEvents.write(payload)
 
         if (payload.type === 'build:error') {
-          const server = serverId ? registry.get(serverId) : null
           const logFile = server?.logPaths?.['dev-events'] ?? session.files['dev-events'] ?? ''
-          sendNotificationToAll('build', payload.error ?? 'Build error', logFile, `get_build_status`)
+          sendNotificationToAll('build', payload.error ?? 'Build error', logFile, `logs`)
         }
       } catch {
         // Ignore malformed messages

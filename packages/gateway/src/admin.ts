@@ -90,7 +90,7 @@ export function handleAdmin(
           jsonResponse(res, 400, { error: 'Missing "code" field' })
           return
         }
-        const result = await browserCommand(serverId, 'eval', { code })
+        const result = await browserCommand({ serverId }, 'eval', { code })
         jsonResponse(res, 200, { result })
       } catch (err: any) {
         jsonResponse(res, 500, { error: err.message ?? String(err) })

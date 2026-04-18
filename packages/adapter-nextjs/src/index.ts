@@ -6,8 +6,9 @@ import {
   registerWithRetry,
   patchConsole,
   connectDevEvents,
-  setInternalLogging,
+  makeServerId,
   type DevEventsHandle,
+  type RegistrationPayload,
 } from '@winstonfassett/web-dev-mcp-gateway/helpers'
 
 interface NextConfig {
@@ -20,6 +21,7 @@ export interface WebDevMcpOptions {
   gatewayUrl?: string
   enabled?: boolean
   network?: boolean
+  key?: string              // Optional key for disambiguation
 }
 
 let _devEvents: DevEventsHandle | null = null
@@ -62,9 +64,9 @@ export function withWebDevMcp(
     return nextConfig
   }
 
-  // Stable server ID: set once by parent process, inherited by forked workers via env
+  // Stable server ID: computed from directory + type, inherited by forked workers via env
   if (!process.env.__WEB_DEV_MCP_SERVER__) {
-    process.env.__WEB_DEV_MCP_SERVER__ = `nextjs-${process.pid}`
+    process.env.__WEB_DEV_MCP_SERVER__ = makeServerId(process.cwd(), 'nextjs', options.key)
   }
   const serverId = process.env.__WEB_DEV_MCP_SERVER__
 
@@ -72,12 +74,13 @@ export function withWebDevMcp(
   if (!process.env.__WEB_DEV_MCP_REGISTERED__) {
     process.env.__WEB_DEV_MCP_REGISTERED__ = '1'
 
-    const registrationPayload = {
-      id: serverId,
+    const registrationPayload: RegistrationPayload = {
+      serverId,
       type: 'nextjs',
       port: parseInt(process.env.PORT || '3000', 10),
       pid: process.pid,
       directory: process.cwd(),
+      key: options.key,
     }
 
     ensureGateway(gatewayUrl).then(async () => {

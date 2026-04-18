@@ -2,9 +2,11 @@
  * Server Registry - tracks dev servers registered with the gateway
  *
  * Identity model:
- *   Project = directory path (persistent scope)
- *   Server  = PID string (ephemeral instance, belongs to a project)
- *   Browser = random uid (belongs to a server instance)
+ *   Project  = directory path (persistent scope)
+ *   Server   = projectId:type or projectId:key (stable, survives restarts)
+ *   Endpoint = port on a server (can have multiple per server)
+ *   Process  = PID serving an endpoint (ephemeral, rotates transparently)
+ *   Browser  = affiliated with a server, not an endpoint or process
  */
 
 import { createHash } from 'node:crypto'
@@ -18,24 +20,30 @@ export function makeProjectId(directory: string): string {
   return `${name}-${hash}`
 }
 
-export interface RegisteredServer {
-  id: string              // PID string — ephemeral instance identity
-  projectId: string       // Stable short ID: basename-hash4
-  directory: string       // Absolute project path (persistent scope)
-  type: 'vite' | 'nextjs' | 'storybook' | 'generic'
+/**
+ * Stable server identity: projectId:type (default) or projectId:key (user override).
+ * This is the join key between browsers and servers — survives restarts.
+ */
+export function makeServerId(directory: string, type: string, key?: string): string {
+  return `${makeProjectId(directory)}:${key || type}`
+}
+
+export interface Endpoint {
   port: number
   pid: number
-  name?: string           // Optional friendly name
-  rpcEndpoint?: string    // ws://localhost:5173/__rpc
-  mcpEndpoint?: string    // http://localhost:5173/__mcp/sse (for native MCP)
-  logPaths: Record<string, string>  // Channel → file path (always populated)
-  logDir: string          // Absolute path to project's .web-dev-mcp/
   registeredAt: number
 }
 
-/** Server instance ID = PID (always available, always correct) */
-export function makeServerId(pid: number): string {
-  return String(pid)
+export interface RegisteredServer {
+  id: string              // Stable identity: projectId:type or projectId:key
+  projectId: string       // Stable short ID: basename-hash4
+  directory: string       // Absolute project path (persistent scope)
+  type: 'vite' | 'nextjs' | 'storybook' | 'generic'
+  key?: string            // Optional user-specified key for disambiguation
+  name?: string           // Optional friendly name for display
+  endpoints: Endpoint[]   // Live processes serving this server (one per port)
+  logPaths: Record<string, string>  // Channel → file path (always populated)
+  logDir: string          // Absolute path to project's .web-dev-mcp/
 }
 
 /** Create per-project log directory and return channel file paths */
@@ -59,49 +67,89 @@ export function initProjectLogDir(
 
 export class ServerRegistry {
   private servers = new Map<string, RegisteredServer>()       // server ID → server
-  private directoryPortIndex = new Map<string, string>()       // "directory:port" → server ID
-  private projectIdIndex = new Map<string, string>()          // projectId → server ID
+  private projectIdIndex = new Map<string, Set<string>>()     // projectId → set of server IDs
   private connectionOrder: string[] = []
 
-  add(server: RegisteredServer): void {
-    // If this directory+port combo already has a server, remove the old one (re-registration)
-    const dirPortKey = `${server.directory}:${server.port}`
-    const existingId = this.directoryPortIndex.get(dirPortKey)
-    if (existingId && existingId !== server.id) {
-      this.remove(existingId)
+  /**
+   * Register an endpoint on a server. Creates the server if it doesn't exist.
+   * Same server + same port = update PID (restart on same port).
+   * Same server + new port = add endpoint (additional instance).
+   */
+  addEndpoint(serverId: string, serverInfo: Omit<RegisteredServer, 'endpoints'>, endpoint: Endpoint): RegisteredServer {
+    let server = this.servers.get(serverId)
+
+    if (server) {
+      // Existing server — update or add endpoint
+      const existing = server.endpoints.find(e => e.port === endpoint.port)
+      if (existing) {
+        // Same port, new PID (restart)
+        existing.pid = endpoint.pid
+        existing.registeredAt = endpoint.registeredAt
+        console.log(`[registry] Endpoint updated: ${serverId} port=${endpoint.port} pid=${endpoint.pid}`)
+      } else {
+        // New port (additional instance)
+        server.endpoints.push(endpoint)
+        console.log(`[registry] Endpoint added: ${serverId} port=${endpoint.port} pid=${endpoint.pid}`)
+      }
+      // Update log paths (may change if re-registered with different channels)
+      server.logPaths = serverInfo.logPaths
+      server.logDir = serverInfo.logDir
+      if (serverInfo.name) server.name = serverInfo.name
+    } else {
+      // New server
+      server = { ...serverInfo, endpoints: [endpoint] }
+      this.servers.set(serverId, server)
+
+      // Update project index
+      let projectServers = this.projectIdIndex.get(server.projectId)
+      if (!projectServers) {
+        projectServers = new Set()
+        this.projectIdIndex.set(server.projectId, projectServers)
+      }
+      projectServers.add(serverId)
+
+      console.log(`[registry] Server registered: ${serverId} (${server.type}) dir=${server.directory} port=${endpoint.port}`)
     }
 
-    this.servers.set(server.id, server)
-    this.directoryPortIndex.set(dirPortKey, server.id)
-    this.projectIdIndex.set(server.projectId, server.id)
-
-    // Track connection order
-    const index = this.connectionOrder.indexOf(server.id)
+    // Track connection order (most recent registration at end)
+    const index = this.connectionOrder.indexOf(serverId)
     if (index !== -1) {
       this.connectionOrder.splice(index, 1)
     }
-    this.connectionOrder.push(server.id)
+    this.connectionOrder.push(serverId)
 
-    console.log(`[registry] Registered: ${server.id} (${server.type}) dir=${server.directory}`)
+    return server
   }
 
+  /**
+   * Remove a specific endpoint from a server.
+   * If the server has no more endpoints, the server entry stays (browsers still affiliated).
+   */
+  removeEndpoint(serverId: string, port: number): void {
+    const server = this.servers.get(serverId)
+    if (!server) return
+
+    server.endpoints = server.endpoints.filter(e => e.port !== port)
+    console.log(`[registry] Endpoint removed: ${serverId} port=${port} (${server.endpoints.length} remaining)`)
+  }
+
+  /** Remove a server entirely (explicit unregister) */
   remove(id: string): void {
     const server = this.servers.get(id)
     if (server) {
       this.servers.delete(id)
-      // Clean up directory:port index if it still points to this server
-      const dirPortKey = `${server.directory}:${server.port}`
-      if (this.directoryPortIndex.get(dirPortKey) === id) {
-        this.directoryPortIndex.delete(dirPortKey)
-      }
-      if (this.projectIdIndex.get(server.projectId) === id) {
-        this.projectIdIndex.delete(server.projectId)
+      const projectServers = this.projectIdIndex.get(server.projectId)
+      if (projectServers) {
+        projectServers.delete(id)
+        if (projectServers.size === 0) {
+          this.projectIdIndex.delete(server.projectId)
+        }
       }
       const index = this.connectionOrder.indexOf(id)
       if (index !== -1) {
         this.connectionOrder.splice(index, 1)
       }
-      console.log(`[registry] Removed: ${id} (dir=${server.directory})`)
+      console.log(`[registry] Server removed: ${id}`)
     }
   }
 
@@ -109,17 +157,14 @@ export class ServerRegistry {
     return this.servers.get(id)
   }
 
-  getByDirectory(directory: string): RegisteredServer | undefined {
-    for (const server of this.servers.values()) {
-      if (server.directory === directory) return server
-    }
-    return undefined
+  getByProjectId(projectId: string): RegisteredServer[] {
+    const serverIds = this.projectIdIndex.get(projectId)
+    if (!serverIds) return []
+    return [...serverIds].map(id => this.servers.get(id)!).filter(Boolean)
   }
 
-  getByProjectId(projectId: string): RegisteredServer | undefined {
-    const id = this.projectIdIndex.get(projectId)
-    if (!id) return undefined
-    return this.servers.get(id)
+  getByDirectory(directory: string): RegisteredServer[] {
+    return this.getAll().filter(s => s.directory === directory)
   }
 
   getAll(): RegisteredServer[] {
@@ -130,8 +175,9 @@ export class ServerRegistry {
     return this.getAll().filter(s => s.type === type)
   }
 
+  /** Find a server that has an endpoint on this port */
   getByPort(port: number): RegisteredServer | undefined {
-    return this.getAll().find(s => s.port === port)
+    return this.getAll().find(s => s.endpoints.some(e => e.port === port))
   }
 
   getLatest(): RegisteredServer | undefined {
@@ -153,25 +199,32 @@ export class ServerRegistry {
     return [...new Set(this.getAll().map(s => s.directory))]
   }
 
+  /** Check if any endpoint on any server has a live process */
+  hasLiveEndpoints(serverId: string): boolean {
+    const server = this.servers.get(serverId)
+    if (!server) return false
+    return server.endpoints.length > 0
+  }
+
   /**
-   * Remove servers whose processes are no longer running.
-   * Skips servers registered within the last 30s (grace period for process forks).
+   * Remove endpoints whose processes are no longer running.
+   * Skips endpoints registered within the last 30s (grace period for process forks).
+   * Server entries are never removed — only endpoints are cleaned up.
    */
-  cleanupDeadServers(): string[] {
-    const removedIds: string[] = []
+  cleanupDeadEndpoints(): string[] {
+    const cleaned: string[] = []
     const now = Date.now()
     for (const server of this.getAll()) {
-      // Grace period: don't kill recently registered servers (process may be forking)
-      if (now - server.registeredAt < 30_000) continue
-      try {
-        // Check if process is still alive (signal 0 doesn't actually send a signal)
-        process.kill(server.pid, 0)
-      } catch (err) {
-        // Process doesn't exist
-        this.remove(server.id)
-        removedIds.push(server.id)
+      for (const endpoint of [...server.endpoints]) {
+        if (now - endpoint.registeredAt < 30_000) continue
+        try {
+          process.kill(endpoint.pid, 0)
+        } catch {
+          this.removeEndpoint(server.id, endpoint.port)
+          cleaned.push(`${server.id}:${endpoint.port}`)
+        }
       }
     }
-    return removedIds
+    return cleaned
   }
 }

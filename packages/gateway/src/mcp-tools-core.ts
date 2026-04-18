@@ -1,147 +1,235 @@
-// Core MCP tools: set_project, list_projects, list_browsers, get_diagnostics, clear, eval_js,
-// query_dom, screenshot, a11y_snapshot
+// Core MCP tools: browser_connect, browser_disconnect, browser_list, browser_projects,
+// browser_eval, browser_screenshot, browser_a11y_snapshot, browser_query, browser_debug, logs
 
 import { z } from 'zod'
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { McpContext } from './mcp-server.js'
 import type { RegisteredServer } from './registry.js'
 import { truncateChannelFiles } from './session.js'
-import { getDiagnostics } from './log-reader.js'
+import { getDiagnostics, queryLogs } from './log-reader.js'
 import { browserCommand, getAllBrowsers } from './rpc-server.js'
 import { tryPlaywrightCommand } from './playwright-commands.js'
 
-// --- Project Resolution ---
-
-const GATEWAY_PROJECT = '__gateway'
-
-export interface ResolvedProject {
-  type: 'project' | 'gateway'
-  server?: RegisteredServer
-  logPaths: Record<string, string>
-  serverId?: string
-}
+// --- Project/Server Resolution ---
 
 /**
- * Resolve project from an explicit arg, session currentProject, or auto (single project).
- *
- * Accepts: full directory path, projectId (basename-hash4), or "__gateway".
- * Throws on ambiguity or missing context.
+ * Resolve a project target to a server. Accepts:
+ *   - server ID (projectId:type)
+ *   - projectId (basename-hash4) — picks first server
+ *   - full directory path — picks first server
+ *   - undefined — uses session currentServer, or auto if only one
  */
-export function resolveProject(ctx: McpContext, projectArg?: string): ResolvedProject {
-  const target = projectArg ?? ctx.currentProject
+function resolveServer(ctx: McpContext, target?: string): RegisteredServer | null {
   const registry = ctx.registry
+  if (!registry) return null
 
-  // __gateway virtual project
-  if (target === GATEWAY_PROJECT) {
-    return { type: 'gateway', logPaths: ctx.session.files }
-  }
+  const lookupTarget = target ?? ctx.currentServer ?? ctx.currentProject
 
-  if (target && registry) {
-    // Try exact directory match
-    let server = registry.getByDirectory(target)
-    if (server) return { type: 'project', server, logPaths: server.logPaths, serverId: server.id }
+  if (lookupTarget) {
+    // Try exact server ID match
+    let server = registry.get(lookupTarget)
+    if (server) return server
 
-    // Try projectId match (basename-hash4)
-    server = registry.getByProjectId(target)
-    if (server) return { type: 'project', server, logPaths: server.logPaths, serverId: server.id }
+    // Try directory match
+    let servers = registry.getByDirectory(lookupTarget)
+    if (servers.length > 0) return servers[0]
 
-    // Try parent/child match: target is parent of registered dir, or vice versa
+    // Try projectId match
+    servers = registry.getByProjectId(lookupTarget)
+    if (servers.length > 0) return servers[0]
+
+    // Try parent/child directory match
     for (const s of registry.getAll()) {
-      if (s.directory.startsWith(target + '/') || target.startsWith(s.directory + '/')) {
-        return { type: 'project', server: s, logPaths: s.logPaths, serverId: s.id }
+      if (s.directory.startsWith(lookupTarget + '/') || lookupTarget.startsWith(s.directory + '/')) {
+        return s
       }
     }
 
-    throw new Error(`No project found matching "${target}". Use list_projects to see available projects.`)
+    return null
   }
 
-  // No explicit target — try auto-resolve
-  if (registry) {
-    const size = registry.size()
-    if (size === 1) {
-      const server = registry.getAll()[0]
-      return { type: 'project', server, logPaths: server.logPaths, serverId: server.id }
-    }
-    if (size > 1) {
-      const projects = registry.getAll().map(s => `  ${s.projectId} (${s.directory})`).join('\n')
-      throw new Error(`Multiple projects registered. Call set_project first:\n${projects}`)
-    }
+  // No target — auto-resolve if exactly one server
+  if (registry.size() === 1) {
+    return registry.getAll()[0]
   }
 
-  // No registry or no servers — fall back to gateway
-  return { type: 'gateway', logPaths: ctx.session.files }
+  return null
 }
 
-/** Convenience: resolve and get log paths */
-export function getLogPaths(ctx: McpContext, projectArg?: string): Record<string, string> {
-  return resolveProject(ctx, projectArg).logPaths
+function getLogPaths(ctx: McpContext, projectArg?: string): Record<string, string> {
+  const server = resolveServer(ctx, projectArg)
+  return server?.logPaths ?? ctx.session.files
 }
 
-/** Convenience: resolve and get server ID for browser lookup */
-export function getServerId(ctx: McpContext, projectArg?: string): string | undefined {
-  return resolveProject(ctx, projectArg).serverId
-}
-
-// --- Tool Registration ---
-
-export function errResult(err: any) {
+function errResult(err: any) {
   return { content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message ?? String(err) }) }], isError: true }
 }
 
-/** Send a command to the browser. Tries Playwright (CDP) first, falls back to injected client RPC. */
-export async function cmd(ctx: McpContext, method: string, params?: any) {
-  const resolved = (() => { try { return resolveProject(ctx) } catch { return null } })()
-  const serverPort = resolved?.server?.port
+function jsonResult(data: any) {
+  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
+}
+
+/** Send a command to the session's locked browser. Tries Playwright (CDP) first, falls back to RPC. */
+async function cmd(ctx: McpContext, method: string, params?: any) {
+  const server = resolveServer(ctx)
+  const serverPort = server?.endpoints[0]?.port
+
   const pwResult = await tryPlaywrightCommand(ctx.cdpRelay, method, params, serverPort)
   if (pwResult !== null) return pwResult
 
-  const serverId = (() => { try { return resolveProject(ctx).serverId } catch { return undefined } })()
-  return browserCommand(serverId, method, params)
+  return browserCommand({ browserId: ctx.currentBrowser, serverId: ctx.currentServer }, method, params)
 }
+
+// Re-export for full tools
+export { resolveServer, getLogPaths, errResult, jsonResult, cmd }
+
+// --- Tool Registration ---
 
 export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
 
-  // --- set_project ---
+  // --- browser_connect ---
   mcp.tool(
-    'set_project',
-    'Set the current project for this session. Required before using browser tools when multiple projects are registered. Accepts: project short ID (from list_projects), full directory path, or "__gateway" for gateway-level operations.',
+    'browser_connect',
+    'Connect to a browser for this session. Locks the session to a specific server and browser. Required before using browser commands when multiple projects are registered.',
     {
-      project: z.string().describe('Project identifier: short ID (e.g. "nextjs-turbopack-a3f7"), full directory path, or "__gateway"'),
+      project: z.string().optional().describe('Project: server ID (projectId:type), projectId, or directory path'),
+      browser: z.string().optional().describe('Browser ID to connect to. Default: latest browser for the server.'),
     },
     async (args) => {
-      const target = args.project
-
-      if (target === GATEWAY_PROJECT) {
-        ctx.currentProject = GATEWAY_PROJECT
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ project: GATEWAY_PROJECT, type: 'web-dev-mcp-gateway' }) }] }
+      const registry = ctx.registry
+      if (!registry) {
+        return errResult(new Error('No server registry available'))
       }
 
-      // Validate it resolves before setting
-      const resolved = resolveProject(ctx, target)
-      if (resolved.type === 'project' && resolved.server) {
-        ctx.currentProject = resolved.server.directory
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({
-            project: resolved.server.projectId,
-            directory: resolved.server.directory,
-            type: resolved.server.type,
-            serverId: resolved.server.id,
-          }) }],
+      // Resolve server
+      const server = resolveServer(ctx, args.project)
+      if (!server) {
+        const all = registry.getAll()
+        if (all.length === 0) {
+          return errResult(new Error('No dev servers registered. Start a dev server with the web-dev-mcp adapter.'))
         }
+        if (all.length > 1 && !args.project) {
+          return jsonResult({
+            error: 'Multiple servers registered. Specify a project.',
+            servers: all.map(s => ({
+              id: s.id,
+              projectId: s.projectId,
+              directory: s.directory,
+              type: s.type,
+              endpoints: s.endpoints,
+              browsers: getAllBrowsers().filter(b => b.serverId === s.id).length,
+            })),
+          })
+        }
+        return errResult(new Error(`No server found matching "${args.project}"`))
       }
 
-      // Shouldn't reach here but handle gracefully
-      ctx.currentProject = target
-      return { content: [{ type: 'text' as const, text: JSON.stringify({ project: target, status: 'set' }) }] }
+      // Lock server
+      ctx.currentProject = server.directory
+      ctx.currentServer = server.id
+
+      // Find browser
+      const serverBrowsers = getAllBrowsers().filter(b => b.serverId === server.id)
+      let browser: typeof serverBrowsers[0] | undefined
+
+      if (args.browser) {
+        browser = serverBrowsers.find(b => b.browserId === args.browser)
+        if (!browser) {
+          return jsonResult({
+            error: `Browser "${args.browser}" not found for server ${server.id}`,
+            available: serverBrowsers.map(b => ({ id: b.browserId, url: b.url, title: b.title })),
+          })
+        }
+      } else {
+        // Latest browser
+        browser = serverBrowsers[serverBrowsers.length - 1]
+      }
+
+      if (browser?.browserId) {
+        ctx.currentBrowser = browser.browserId
+      }
+
+      // CDP status
+      const cdpStatus = ctx.cdpRelay ? {
+        available: ctx.cdpRelay.canActivate,
+        active: ctx.cdpRelay.isAvailable,
+      } : { available: false, active: false }
+
+      return jsonResult({
+        server: {
+          id: server.id,
+          projectId: server.projectId,
+          directory: server.directory,
+          type: server.type,
+          name: server.name,
+          endpoints: server.endpoints,
+        },
+        browser: browser ? {
+          id: browser.browserId,
+          url: browser.url,
+          title: browser.title,
+        } : null,
+        other_browsers: Math.max(0, serverBrowsers.length - 1),
+        cdp: cdpStatus,
+      })
     },
   )
 
-  // --- list_projects ---
+  // --- browser_disconnect ---
   mcp.tool(
-    'list_projects',
-    'List all registered dev server projects and the __gateway virtual project.',
+    'browser_disconnect',
+    'Disconnect from the current browser session. Clears server and browser locks.',
+    {},
+    async () => {
+      const prev = { server: ctx.currentServer, browser: ctx.currentBrowser }
+      ctx.currentServer = undefined
+      ctx.currentBrowser = undefined
+      ctx.currentProject = undefined
+      return jsonResult({ disconnected: true, previous: prev })
+    },
+  )
+
+  // --- browser_list ---
+  mcp.tool(
+    'browser_list',
+    'List all connected browsers, optionally filtered by server.',
+    {
+      server: z.string().optional().describe('Server ID to filter by'),
+    },
+    async (args) => {
+      const allBrowsers = getAllBrowsers()
+      const browsers = args.server
+        ? allBrowsers.filter(b => b.serverId === args.server)
+        : allBrowsers
+
+      const result = browsers.map(b => {
+        const server = b.serverId && ctx.registry ? ctx.registry.get(b.serverId) : undefined
+        return {
+          id: b.browserId,
+          connId: b.connId,
+          server: b.serverId,
+          project: server?.projectId ?? null,
+          directory: server?.directory ?? null,
+          url: b.url,
+          title: b.title,
+          connectedAt: b.connectedAt,
+          current: b.browserId === ctx.currentBrowser,
+        }
+      })
+
+      return jsonResult({
+        browsers: result,
+        current_server: ctx.currentServer ?? null,
+        current_browser: ctx.currentBrowser ?? null,
+      })
+    },
+  )
+
+  // --- browser_projects ---
+  mcp.tool(
+    'browser_projects',
+    'List all registered dev server projects.',
     {},
     async () => {
       const projects: any[] = []
@@ -151,141 +239,86 @@ export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
         for (const server of ctx.registry.getAll()) {
           const browserCount = browsers.filter(b => b.serverId === server.id).length
           projects.push({
-            id: server.projectId,
+            id: server.id,
+            projectId: server.projectId,
             directory: server.directory,
             type: server.type,
-            port: server.port,
-            serverId: server.id,
+            name: server.name,
+            endpoints: server.endpoints,
             browsers: browserCount,
-            current: ctx.currentProject === server.directory,
+            current: ctx.currentServer === server.id,
           })
         }
       }
 
-      projects.push({
-        id: GATEWAY_PROJECT,
-        type: 'web-dev-mcp-gateway',
-        current: ctx.currentProject === GATEWAY_PROJECT,
+      return jsonResult({
+        projects,
+        current_server: ctx.currentServer ?? null,
       })
-
-      return { content: [{ type: 'text' as const, text: JSON.stringify(projects, null, 2) }] }
     },
   )
 
-  // --- list_browsers ---
+  // --- browser_debug ---
   mcp.tool(
-    'list_browsers',
-    'List all connected browsers with their project association.',
-    {},
-    async () => {
-      const browsers = getAllBrowsers()
-      const result = browsers.map(b => {
-        const server = b.serverId && ctx.registry ? ctx.registry.get(b.serverId) : undefined
-        return {
-          id: b.browserId,
-          connId: b.connId,
-          project: server?.projectId ?? null,
-          directory: server?.directory ?? null,
-          serverId: b.serverId,
-          connectedAt: b.connectedAt,
-        }
-      })
-      return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
-    },
-  )
-
-  // --- get_diagnostics ---
-  mcp.tool(
-    'get_diagnostics',
-    'Consolidated diagnostic snapshot: browser logs + server logs + build status + summary.',
+    'browser_debug',
+    'Start or stop CDP debugging via the Chrome extension. When active, browser commands use Playwright for pixel-perfect screenshots and ref-based element targeting.',
     {
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
-      since_checkpoint: z.boolean().optional().describe('Use checkpoint from last clear'),
-      since_ts: z.number().optional().describe('Unix ms timestamp'),
-      limit: z.number().optional().describe('Max events per channel (default: 50, max: 200)'),
-      level: z.string().optional().describe('Filter by level (e.g. "error", "warn")'),
-      search: z.string().optional().describe('Text search across event payload (case-insensitive)'),
-      browser_id: z.string().optional().describe('Filter by browser ID'),
+      action: z.enum(['start', 'stop', 'status']).describe('Start/stop CDP debugging, or check status'),
     },
     async (args) => {
-      try {
-        const logPaths = getLogPaths(ctx, args.project)
-        const result = getDiagnostics(logPaths, ctx.session, {
-          since_checkpoint: args.since_checkpoint,
-          since_ts: args.since_ts,
-          limit: args.limit,
-          level: args.level,
-          search: args.search,
-          browserId: args.browser_id,
-        }, ctx.devEventsWriter)
-        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
-      } catch (err: any) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message }) }], isError: true }
+      const relay = ctx.cdpRelay
+      if (!relay) {
+        return jsonResult({ error: 'CDP relay not available. Chrome extension not connected.' })
       }
+
+      if (args.action === 'status') {
+        return jsonResult({
+          available: relay.canActivate,
+          active: relay.isAvailable,
+        })
+      }
+
+      if (args.action === 'start') {
+        if (!relay.canActivate) {
+          return jsonResult({ error: 'Cannot activate debugging. Chrome extension not connected or no tabs detected.' })
+        }
+        const activated = await relay.ensureDebugging()
+        return jsonResult({ active: activated })
+      }
+
+      if (args.action === 'stop') {
+        relay.releaseDebugging()
+        return jsonResult({ active: false })
+      }
+
+      return errResult(new Error(`Unknown action: ${args.action}`))
     },
   )
 
-  // --- clear ---
+  // --- browser_eval ---
   mcp.tool(
-    'clear',
-    'Truncate log files and set checkpoint. Call before a code change so get_diagnostics(since_checkpoint) shows only new events.',
+    'browser_eval',
+    'Run JavaScript in the connected browser. Full DOM access, supports await. Persistent `state` object across calls. `browser.*` helpers available.',
     {
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
-      channels: z.array(z.string()).optional().describe('Which log channels to clear. Default: all.'),
+      code: z.union([z.string(), z.array(z.string())]).describe('JavaScript code. Array = auto-waited pipeline (DOM settles between steps). Promises auto-awaited.'),
+      project: z.string().optional().describe('Override project for this call'),
     },
     async (args) => {
       try {
-        const resolved = resolveProject(ctx, args.project)
-        let channelsToClear = args.channels
-        if (!channelsToClear || channelsToClear.length === 0) {
-          channelsToClear = Object.keys(resolved.logPaths)
-        }
-        const countsBefore = truncateChannelFiles(resolved.logPaths, channelsToClear)
-        ctx.session.checkpointTs = Date.now()
-
-        // Clear browser console for connected browsers
-        let browsersCleared = 0
-        if (resolved.serverId) {
-          const connected = getAllBrowsers().filter(b => b.serverId === resolved.serverId)
-          if (connected.length > 0) {
-            await browserCommand(resolved.serverId, 'eval', { code: 'console.clear()' }).catch(() => {})
-            browsersCleared = connected.length
+        if (!ctx.currentServer && !args.project) {
+          // Try auto-resolve
+          const server = resolveServer(ctx)
+          if (!server) {
+            return errResult(new Error('No browser connected. Call browser_connect first.'))
           }
-        }
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({
-            checkpoint_ts: ctx.session.checkpointTs,
-            logs_cleared: countsBefore,
-            browsers_cleared: browsersCleared,
-          }, null, 2) }],
-        }
-      } catch (err: any) {
-        return { content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message }) }], isError: true }
-      }
-    },
-  )
-
-  // --- eval_js ---
-  mcp.tool(
-    'eval_js',
-    'Run JavaScript in the browser with full DOM access. Multi-statement, supports await. Persistent `state` object survives across calls. `browser.*` helpers for common operations.',
-    {
-      code: z.union([z.string(), z.array(z.string())]).describe('JavaScript code to run in browser. String for single eval, array of strings for auto-waited pipeline (DOM settles between steps). Promises are auto-awaited. Globals: `document`, `window`, `localStorage`, `sessionStorage` (real browser objects), `state` (persists across calls), `browser` (helpers: .markdown(sel?), .screenshot(sel?), .navigate(url), .click(sel), .fill(sel, val), .waitFor(selectorOrFn, interval?, timeout?), .eval(expr), .elementSource(sel)).'),
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
-    },
-    async (args) => {
-      try {
-        const resolved = resolveProject(ctx, args.project)
-        if (resolved.type === 'gateway') {
-          return { content: [{ type: 'text' as const, text: JSON.stringify({ error: '__gateway has no browser. Use set_project to target a real project.' }) }], isError: true }
+          ctx.currentServer = server.id
+          ctx.currentProject = server.directory
         }
 
         const start = Date.now()
-        let result = await browserCommand(resolved.serverId, 'eval', { code: args.code })
+        let result = await cmd(ctx, 'eval', { code: args.code })
 
-        // Intercept screenshot results from browser.screenshot() — save to file instead of
-        // dumping base64 into the agent context
+        // Intercept screenshot results from browser.screenshot()
         let parsed = result
         if (typeof result === 'string' && result.includes('data:image/')) {
           try { parsed = JSON.parse(result) } catch {}
@@ -295,188 +328,138 @@ export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
           const data = (parsed as any).data as string
           const mimeType = data.startsWith('data:image/png') ? 'image/png' : 'image/jpeg'
           const base64 = data.replace(/^data:image\/\w+;base64,/, '')
-          const logDir = resolved.server?.logDir ?? ctx.session.logDir
+          const server = resolveServer(ctx, args.project)
+          const logDir = server?.logDir ?? ctx.session.logDir
           const screenshotDir = join(logDir, 'screenshots')
+          const { mkdirSync, writeFileSync } = await import('node:fs')
           mkdirSync(screenshotDir, { recursive: true })
-          const ext = mimeType === 'image/png' ? 'png' : 'jpeg'
-          const filename = `screenshot-${Date.now()}.${ext}`
-          const filePath = join(screenshotDir, filename)
-          writeFileSync(filePath, Buffer.from(base64, 'base64'))
-          result = { path: filePath, width: (parsed as any).width, height: (parsed as any).height }
+          const filename = `screenshot-${Date.now()}.${mimeType === 'image/png' ? 'png' : 'jpg'}`
+          const filepath = join(screenshotDir, filename)
+          writeFileSync(filepath, Buffer.from(base64, 'base64'))
+          result = JSON.stringify({ screenshot: filepath, width: (parsed as any).width, height: (parsed as any).height })
         }
 
         const serialized = typeof result === 'string' ? result
           : result === undefined ? 'undefined'
           : result === null ? 'null'
           : JSON.stringify(result, null, 2)
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ result: serialized, duration_ms: Date.now() - start }, null, 2) }],
-        }
+
+        return jsonResult({ result: serialized, duration_ms: Date.now() - start })
       } catch (err: any) {
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message ?? String(err) }) }],
-          isError: true,
-        }
+        return errResult(err)
       }
     },
   )
 
-  // --- query_dom ---
+  // --- browser_screenshot ---
   mcp.tool(
-    'query_dom',
-    'Inspect DOM structure. Returns simplified tree with tags, key attributes, and text. For page content/text, use get_page_markdown instead. Start specific (#main, .hero-section, [role="navigation"]). Use "body" with max_depth:3 only for a page skeleton overview. If output exceeds max_output, behavior depends on on_limit: "hint" (default) stops and returns child hints to narrow your selector; "file" writes the full result to a file you can read/grep.',
+    'browser_screenshot',
+    'Take a screenshot of the connected browser page.',
     {
-      selector: z.string().optional().describe('CSS selector (default: body)'),
-      max_depth: z.number().optional().describe('Max nesting depth (default: 3)'),
-      max_output: z.number().optional().describe('Max output chars before limit behavior kicks in (default: 30000, max: 200000)'),
-      on_limit: z.enum(['hint', 'file']).optional().describe('What to do when output exceeds max_output. "hint" (default): stop and return child selector hints. "file": write full result to a file and return the path.'),
-      include_source: z.boolean().optional().describe('Include source file:line and component name on elements (React, Vue, Svelte, Preact dev mode). Default: false.'),
-      attributes: z.array(z.string()).optional().describe('Attributes to include'),
-      text_length: z.number().optional().describe('Max text chars per element (default: 100)'),
-      visible_only: z.boolean().optional().describe('Exclude hidden elements (display:none, visibility:hidden, opacity:0, aria-hidden, zero-size). Default: true. Set false to include all elements.'),
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
+      selector: z.string().optional().describe('CSS selector to screenshot. Default: full page.'),
+      preset: z.enum(['full', 'viewport']).optional().describe('full = full page, viewport = visible area'),
+      format: z.enum(['jpeg', 'png']).optional().describe('Image format. Default: jpeg.'),
     },
     async (args) => {
       try {
-        const result = await cmd(ctx, 'queryDom', {
-          selector: args.selector ?? 'body',
-          max_depth: args.max_depth,
-          max_output: args.max_output,
-          on_limit: args.on_limit,
-          include_source: args.include_source,
-          attributes: args.attributes,
-          text_length: args.text_length,
-          visible_only: args.visible_only,
-        })
-        const r = result as any
-
-        if (r.too_large) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({
-                too_large: true,
-                element_count: r.element_count,
-                child_count: r.child_count,
-                children_hints: r.children_hints,
-                hint: r.hint,
-                partial_html: r.html || undefined,
-              }, null, 2),
-            }],
-          }
+        const result = await cmd(ctx, 'screenshot', args)
+        if (result && typeof result === 'object' && (result as any).data) {
+          const data = (result as any).data as string
+          const mimeType = data.startsWith('data:image/png') ? 'image/png' : 'image/jpeg'
+          const base64 = data.replace(/^data:image\/\w+;base64,/, '')
+          const server = resolveServer(ctx)
+          const logDir = server?.logDir ?? ctx.session.logDir
+          const screenshotDir = join(logDir, 'screenshots')
+          const { mkdirSync, writeFileSync } = await import('node:fs')
+          mkdirSync(screenshotDir, { recursive: true })
+          const filename = `screenshot-${Date.now()}.${mimeType === 'image/png' ? 'png' : 'jpg'}`
+          const filepath = join(screenshotDir, filename)
+          writeFileSync(filepath, Buffer.from(base64, 'base64'))
+          return jsonResult({ screenshot: filepath, width: (result as any).width, height: (result as any).height })
         }
-
-        if (r.write_to_file) {
-          const fullHtml = r.html ?? ''
-          const resolved = resolveProject(ctx)
-          const logDir = resolved.server?.logDir ?? ctx.session.logDir
-          const domDir = join(logDir, 'dom-snapshots')
-          mkdirSync(domDir, { recursive: true })
-          const filename = `query-dom-${Date.now()}.html`
-          const filePath = join(domDir, filename)
-          writeFileSync(filePath, fullHtml)
-
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify({
-                file: filePath,
-                file_lines: fullHtml.split('\n').length,
-                file_chars: fullHtml.length,
-                element_count: r.element_count,
-                child_count: r.child_count,
-                children_hints: r.children_hints,
-                hint: `Full DOM snapshot written to file (${fullHtml.split('\n').length} lines, ${fullHtml.length} chars). Read or grep it.`,
-              }, null, 2),
-            }],
-          }
-        }
-
-        return { content: [{ type: 'text' as const, text: r.html ?? JSON.stringify(r, null, 2) }] }
-      } catch (err: any) { return errResult(err) }
+        return jsonResult(result)
+      } catch (err: any) {
+        return errResult(err)
+      }
     },
   )
 
-  // --- screenshot ---
+  // --- browser_a11y_snapshot ---
   mcp.tool(
-    'screenshot',
-    'Take a screenshot. Saves to .web-dev-mcp/screenshots/ and returns file path (use inline:true for base64). Presets: viewport (default), element, full, thumb, hd.',
-    {
-      selector: z.string().optional().describe('CSS selector. Omit for viewport.'),
-      preset: z.enum(['viewport', 'element', 'full', 'thumb', 'hd']).optional().describe('Screenshot preset. Default: viewport (or element if selector given).'),
-      format: z.enum(['png', 'jpeg']).optional().describe('Image format. Default: jpeg.'),
-      quality: z.number().optional().describe('JPEG quality 1-100. Default: 80.'),
-      label: z.string().optional().describe('Label for the filename (e.g. "login-page"). Slugified.'),
-      inline: z.boolean().optional().describe('Return base64 image data instead of saving to file. Default: false.'),
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
-    },
-    async (args) => {
-      try {
-        const opts: any = {}
-        if (args.selector) opts.selector = args.selector
-        if (args.preset) opts.preset = args.preset
-        if (args.format) opts.format = args.format
-        if (args.quality) opts.quality = args.quality
-        const result = await cmd(ctx, 'screenshot', Object.keys(opts).length > 0 ? opts : undefined)
-        if ((result as any).error) return errResult(result)
-        const data = (result as any).data
-        const mimeType = data.startsWith('data:image/png') ? 'image/png' : 'image/jpeg'
-        const base64 = data.replace(/^data:image\/\w+;base64,/, '')
-        const { width, height } = result as any
-
-        if (args.inline) {
-          return {
-            content: [
-              { type: 'image' as const, data: base64, mimeType },
-              { type: 'text' as const, text: JSON.stringify({ width, height }, null, 2) },
-            ],
-          }
-        }
-
-        const resolved = resolveProject(ctx)
-        const logDir = resolved.server?.logDir ?? ctx.session.logDir
-        const screenshotDir = join(logDir, 'screenshots')
-        mkdirSync(screenshotDir, { recursive: true })
-
-        const ext = mimeType === 'image/png' ? 'png' : 'jpeg'
-        const timestamp = Date.now()
-        const slug = args.label ? '-' + args.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''
-        const filename = `screenshot-${timestamp}${slug}.${ext}`
-        const filePath = join(screenshotDir, filename)
-
-        writeFileSync(filePath, Buffer.from(base64, 'base64'))
-
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify({ path: filePath, width, height }, null, 2) },
-          ],
-        }
-      } catch (err: any) { return errResult(err) }
-    },
-  )
-
-  // --- a11y_snapshot ---
-  mcp.tool(
-    'a11y_snapshot',
-    'Returns an accessibility tree snapshot with ref IDs on interactive elements. Use refs with click/fill/hover (e.g. selector: "ref=e3") instead of constructing CSS selectors. Requires Chrome extension CDP connection.',
-    {
-      project: z.string().optional().describe('Project short ID or directory (overrides session default)'),
-    },
+    'browser_a11y_snapshot',
+    'Get an accessibility tree snapshot of the page. Interactive elements get ref IDs for use with click/fill (ref=eN).',
+    {},
     async () => {
       try {
         const result = await cmd(ctx, 'a11ySnapshot')
-        if (!result) {
-          return { content: [{ type: 'text' as const, text: 'a11y_snapshot requires the Chrome extension for CDP access. Install the web-dev-mcp extension and reload the page.' }] }
+        return jsonResult(result)
+      } catch (err: any) {
+        return errResult(err)
+      }
+    },
+  )
+
+  // --- browser_query ---
+  mcp.tool(
+    'browser_query',
+    'Query the DOM. Returns matching elements with attributes and text content.',
+    {
+      selector: z.string().describe('CSS selector'),
+      visible_only: z.boolean().optional().describe('Only return visible elements. Default: true.'),
+    },
+    async (args) => {
+      try {
+        const result = await cmd(ctx, 'queryDom', { selector: args.selector, visibleOnly: args.visible_only ?? true })
+        return jsonResult(result)
+      } catch (err: any) {
+        return errResult(err)
+      }
+    },
+  )
+
+  // --- logs ---
+  mcp.tool(
+    'logs',
+    'Get or clear project logs. Channels: console, errors, server-console, dev-events, network. Includes build status.',
+    {
+      project: z.string().optional().describe('Project (server ID, projectId, or directory). Default: current.'),
+      action: z.enum(['get', 'clear']).optional().describe('get (default) or clear'),
+      channels: z.array(z.string()).optional().describe('Filter to specific channels'),
+      since_checkpoint: z.boolean().optional().describe('Only events since last clear'),
+      since_ts: z.number().optional().describe('Only events after this Unix ms timestamp'),
+      limit: z.number().optional().describe('Max events per channel (default: 50, max: 200)'),
+      level: z.string().optional().describe('Filter by level (error, warn, etc.)'),
+      search: z.string().optional().describe('Text search across payloads'),
+      browser_id: z.string().optional().describe('Filter by browser ID'),
+    },
+    async (args) => {
+      try {
+        const logPaths = getLogPaths(ctx, args.project)
+
+        if (args.action === 'clear') {
+          const channelsToClear = args.channels ?? Object.keys(logPaths)
+          const countsBefore = truncateChannelFiles(logPaths, channelsToClear)
+          ctx.session.checkpointTs = Date.now()
+          return jsonResult({
+            checkpoint_ts: ctx.session.checkpointTs,
+            logs_cleared: countsBefore,
+          })
         }
-        const r = result as any
-        if (r.error) return errResult(r)
-        return {
-          content: [{
-            type: 'text' as const,
-            text: r.snapshot + `\n\n${r.refCount} interactive elements (use ref=eN with click/fill/hover)`,
-          }],
-        }
-      } catch (err: any) { return errResult(err) }
+
+        // Default: get
+        const result = getDiagnostics(logPaths, ctx.session, {
+          since_checkpoint: args.since_checkpoint,
+          since_ts: args.since_ts,
+          limit: args.limit,
+          level: args.level,
+          search: args.search,
+          browserId: args.browser_id,
+        }, ctx.devEventsWriter)
+
+        return jsonResult(result)
+      } catch (err: any) {
+        return errResult(err)
+      }
     },
   )
 }

@@ -2,10 +2,12 @@
 //
 // Gateway → Browser: { id, method, params }
 // Browser → Gateway: { id, result } | { id, error }
+//
+// Browsers connect with ?server=<serverId> where serverId is the stable
+// server identity (projectId:type). This survives server restarts.
+// Browsers are never evicted — they disconnect naturally when tabs close.
 
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws'
-import type { ServerRegistry } from './registry.js'
-import { queryLogs } from './log-reader.js'
 
 // --- Command protocol types ---
 
@@ -17,8 +19,9 @@ interface PendingCommand {
 
 interface BrowserConnection {
   ws: WsWebSocket
+  connId: string
   browserId: string | null
-  serverId: string | null
+  serverId: string | null     // Stable server identity (projectId:type)
   url: string | null
   title: string | null
   connectedAt: number
@@ -30,7 +33,13 @@ const browsers = new Map<string, BrowserConnection>()
 const connectionOrder: string[] = []
 
 // Hooks for external listeners (admin UI, etc)
-type BrowserEventCallback = (event: 'connect' | 'disconnect' | 'init', data: { connId: string; browserId: string | null; serverId: string | null; url?: string | null; title?: string | null }) => void
+type BrowserEventCallback = (event: 'connect' | 'disconnect' | 'init', data: {
+  connId: string
+  browserId: string | null
+  serverId: string | null
+  url?: string | null
+  title?: string | null
+}) => void
 const browserEventListeners: Set<BrowserEventCallback> = new Set()
 export function onBrowserEvent(cb: BrowserEventCallback) {
   browserEventListeners.add(cb)
@@ -67,8 +76,16 @@ function sendCommand(conn: BrowserConnection, method: string, params?: any, time
   })
 }
 
+/** Get a browser connection by browserId (exact targeting) */
+function getBrowserByBrowserId(browserId: string): BrowserConnection | undefined {
+  for (const conn of browsers.values()) {
+    if (conn.browserId === browserId) return conn
+  }
+  return undefined
+}
+
 /** Get the latest browser connection, optionally filtered by serverId */
-function getBrowserConnection(serverId?: string): BrowserConnection | undefined {
+function getLatestBrowser(serverId?: string): BrowserConnection | undefined {
   if (serverId) {
     for (let i = connectionOrder.length - 1; i >= 0; i--) {
       const conn = browsers.get(connectionOrder[i])
@@ -81,47 +98,57 @@ function getBrowserConnection(serverId?: string): BrowserConnection | undefined 
   return browsers.get(connId)
 }
 
-/** Public API: send a command to a browser by serverId */
-export function browserCommand(serverId: string | undefined, method: string, params?: any, timeoutMs?: number): Promise<any> {
-  const conn = getBrowserConnection(serverId)
+/**
+ * Send a command to a specific browser.
+ * Targeting priority:
+ *   1. browserId (exact) — locked session target
+ *   2. serverId (latest) — pick latest browser for this server
+ *   3. global latest — any connected browser
+ */
+export function browserCommand(
+  opts: { browserId?: string; serverId?: string },
+  method: string,
+  params?: any,
+  timeoutMs?: number,
+): Promise<any> {
+  let conn: BrowserConnection | undefined
+
+  if (opts.browserId) {
+    conn = getBrowserByBrowserId(opts.browserId)
+    if (!conn) {
+      return Promise.reject(new Error(`Browser ${opts.browserId} not connected`))
+    }
+  } else {
+    conn = getLatestBrowser(opts.serverId)
+  }
+
   if (!conn) {
     const all = getAllBrowsers()
     const details = all.length > 0
-      ? ` (${all.length} browser(s) connected with servers: ${all.map(b => b.serverId ?? 'untagged').join(', ')})`
+      ? ` (${all.length} browser(s) connected: ${all.map(b => b.serverId ?? 'untagged').join(', ')})`
       : ' (no browsers connected)'
     return Promise.reject(new Error(
-      serverId
-        ? `No browser connected for server ${serverId}${details}`
+      opts.serverId
+        ? `No browser connected for server ${opts.serverId}${details}`
         : `No browser connected${details}`
     ))
   }
   return sendCommand(conn, method, params, timeoutMs)
 }
 
-/** Disconnect and remove all browsers associated with a given serverId */
-export function removeBrowsersByServer(serverId: string): number {
-  let removed = 0
-  for (const [connId, conn] of browsers) {
-    if (conn.serverId === serverId) {
-      // Reject all pending commands
-      for (const [, pending] of conn.pending) {
-        clearTimeout(pending.timer)
-        pending.reject(new Error('Browser disconnected'))
-      }
-      conn.pending.clear()
-      conn.ws.close()
-      browsers.delete(connId)
-      const idx = connectionOrder.indexOf(connId)
-      if (idx >= 0) connectionOrder.splice(idx, 1)
-      console.log(`[web-dev-mcp] Browser evicted (${connId}) — server ${serverId} removed`)
-      for (const cb of browserEventListeners) cb('disconnect', { connId, browserId: conn.browserId, serverId })
-      removed++
-    }
-  }
-  return removed
+/** Legacy API: send a command by serverId string (backward compat during migration) */
+export function browserCommandLegacy(serverId: string | undefined, method: string, params?: any, timeoutMs?: number): Promise<any> {
+  return browserCommand({ serverId }, method, params, timeoutMs)
 }
 
-export function getAllBrowsers(): Array<{ connId: string; browserId: string | null; serverId: string | null; url: string | null; title: string | null; connectedAt: number }> {
+export function getAllBrowsers(): Array<{
+  connId: string
+  browserId: string | null
+  serverId: string | null
+  url: string | null
+  title: string | null
+  connectedAt: number
+}> {
   return Array.from(browsers.entries()).map(([connId, conn]) => ({
     connId,
     browserId: conn.browserId,
@@ -132,35 +159,15 @@ export function getAllBrowsers(): Array<{ connId: string; browserId: string | nu
   }))
 }
 
-/**
- * Evict browsers whose serverId doesn't match any registered server.
- * Browsers with no serverId (untagged) are left alone.
- * Only evicts browsers that have been connected longer than `graceMs` to allow
- * for brief windows during gateway restart where servers haven't re-registered yet.
- */
-export function evictOrphanBrowsers(registeredServerIds: Set<string>, graceMs = 15000): number {
-  let evicted = 0
-  const now = Date.now()
-  for (const [connId, conn] of browsers) {
-    if (!conn.serverId) continue // untagged browsers are fine
-    if (registeredServerIds.has(conn.serverId)) continue // server is registered
-    if (now - conn.connectedAt < graceMs) continue // within grace period
-
-    // Reject all pending commands
-    for (const [, pending] of conn.pending) {
-      clearTimeout(pending.timer)
-      pending.reject(new Error('Browser evicted — server not registered'))
-    }
-    conn.pending.clear()
-    conn.ws.close()
-    browsers.delete(connId)
-    const idx = connectionOrder.indexOf(connId)
-    if (idx >= 0) connectionOrder.splice(idx, 1)
-    console.log(`[web-dev-mcp] Orphan browser evicted (${connId}) — serverId ${conn.serverId} not registered`)
-    for (const cb of browserEventListeners) cb('disconnect', { connId, browserId: conn.browserId, serverId: conn.serverId })
-    evicted++
-  }
-  return evicted
+/** Get browsers affiliated with a specific server */
+export function getBrowsersByServer(serverId: string): Array<{
+  connId: string
+  browserId: string | null
+  url: string | null
+  title: string | null
+  connectedAt: number
+}> {
+  return getAllBrowsers().filter(b => b.serverId === serverId)
 }
 
 export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...args: any[]) => void): void }, rpcPath: string) {
@@ -178,7 +185,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
   wss.on('connection', (ws, request: any) => {
     const connId = Math.random().toString(36).slice(2)
 
-    // Parse server ID from query parameter (for hybrid mode)
+    // Parse server ID from query parameter — now carries stable identity (projectId:type)
     let serverId: string | null = null
     const url = request.url ?? ''
     const match = url.match(/[?&]server=([^&]+)/)
@@ -188,6 +195,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
 
     const conn: BrowserConnection = {
       ws,
+      connId,
       browserId: null,
       serverId,
       url: null,

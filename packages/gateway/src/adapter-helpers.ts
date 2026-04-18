@@ -12,6 +12,9 @@ import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
+// Re-export identity functions for adapter use
+export { makeServerId, makeProjectId } from './registry.js'
+
 // Guard: true while our own code is logging (prevents infinite recursion)
 let _internalLogging = false
 
@@ -20,11 +23,12 @@ export function setInternalLogging(value: boolean) {
 }
 
 export interface RegistrationPayload {
-  id: string
+  serverId: string          // Stable server identity: projectId:type or projectId:key
   type: string
   port: number
   pid: number
   directory: string
+  key?: string              // Optional user key for disambiguation
 }
 
 export interface RegistrationResult {
