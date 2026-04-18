@@ -11,8 +11,8 @@ import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws'
 import { getAllBrowsers, browserCommand, onBrowserEvent, onLogEvent } from './rpc-server.js'
 import { getMcpSessionCount } from './mcp-server.js'
 import { getDiagnostics } from './log-reader.js'
-import type { ServerRegistry } from './registry.js'
-import type { SessionState } from './session.js'
+import { onServerEvent, type ServerRegistry } from './registry.js'
+import { truncateChannelFiles, type SessionState } from './session.js'
 
 export interface AdminEvent {
   type: string
@@ -74,6 +74,30 @@ class AdminAPI extends RpcTarget {
     return browserCommand({ serverId }, 'eval', { code })
   }
 
+  /**
+   * Truncate log files server-side. Persists across reload.
+   * - No serverId: clears session files + all registered servers' files.
+   * - serverId: clears just that server's files.
+   */
+  clearLogs(opts?: { serverId?: string; channels?: string[] }) {
+    const channels = opts?.channels
+    const truncated: Record<string, Record<string, number>> = {}
+
+    if (opts?.serverId) {
+      const server = deps.registry.get(opts.serverId)
+      if (!server) throw new Error(`Server ${opts.serverId} not found`)
+      truncated[opts.serverId] = truncateChannelFiles(server.logPaths, channels)
+    } else {
+      truncated['__session'] = truncateChannelFiles(deps.session.files, channels)
+      for (const server of deps.registry.getAll()) {
+        truncated[server.id] = truncateChannelFiles(server.logPaths, channels)
+      }
+    }
+
+    deps.session.checkpointTs = Date.now()
+    return { success: true, truncated }
+  }
+
   /** Subscribe to live events — returns a ReadableStream pushed by the server */
   subscribe(): ReadableStream<AdminEvent> {
     let cleanup: (() => void) | undefined
@@ -91,11 +115,15 @@ class AdminAPI extends RpcTarget {
           controller.enqueue({ type: 'log', data, ts: Date.now() })
         })
 
-        // TODO: server_register / server_deregister events (ticket 15a7)
+        const unsubServer = onServerEvent((event, data) => {
+          const type = event === 'register' ? 'server_register' : 'server_deregister'
+          controller.enqueue({ type, data, ts: Date.now() })
+        })
 
         cleanup = () => {
           unsubBrowser()
           unsubLog()
+          unsubServer()
         }
       },
       cancel() {

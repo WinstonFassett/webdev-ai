@@ -65,6 +65,20 @@ export function initProjectLogDir(
   return { logDir, logPaths }
 }
 
+export type ServerEvent = 'register' | 'deregister'
+export type ServerEventCallback = (event: ServerEvent, data: { serverId: string; server?: RegisteredServer }) => void
+
+const serverEventListeners: Set<ServerEventCallback> = new Set()
+
+export function onServerEvent(cb: ServerEventCallback): () => void {
+  serverEventListeners.add(cb)
+  return () => serverEventListeners.delete(cb)
+}
+
+function emitServerEvent(event: ServerEvent, data: { serverId: string; server?: RegisteredServer }) {
+  for (const cb of serverEventListeners) cb(event, data)
+}
+
 export class ServerRegistry {
   private servers = new Map<string, RegisteredServer>()       // server ID → server
   private projectIdIndex = new Map<string, Set<string>>()     // projectId → set of server IDs
@@ -118,6 +132,7 @@ export class ServerRegistry {
     }
     this.connectionOrder.push(serverId)
 
+    emitServerEvent('register', { serverId, server })
     return server
   }
 
@@ -131,6 +146,9 @@ export class ServerRegistry {
 
     server.endpoints = server.endpoints.filter(e => e.port !== port)
     console.log(`[registry] Endpoint removed: ${serverId} port=${port} (${server.endpoints.length} remaining)`)
+    if (server.endpoints.length === 0) {
+      emitServerEvent('deregister', { serverId, server })
+    }
   }
 
   /** Remove a server entirely (explicit unregister) */
@@ -150,6 +168,7 @@ export class ServerRegistry {
         this.connectionOrder.splice(index, 1)
       }
       console.log(`[registry] Server removed: ${id}`)
+      emitServerEvent('deregister', { serverId: id, server })
     }
   }
 

@@ -9,7 +9,7 @@ import { getAllBrowsers, browserCommand } from './rpc-server.js'
 import { getMcpSessionCount } from './mcp-server.js'
 import { getDiagnostics } from './log-reader.js'
 import type { ServerRegistry } from './registry.js'
-import type { SessionState } from './session.js'
+import { truncateChannelFiles, type SessionState } from './session.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ADMIN_DIR = join(__dirname, 'admin')
@@ -99,6 +99,37 @@ export function handleAdmin(
     return true
   }
 
+  // POST /__admin/logs/clear — truncate NDJSON files server-side
+  if (url === '/__admin/logs/clear' && req.method === 'POST') {
+    readBody(req).then((body) => {
+      try {
+        const data = body ? JSON.parse(body) : {}
+        const { serverId, channels } = data as { serverId?: string; channels?: string[] }
+        const truncated: Record<string, Record<string, number>> = {}
+
+        if (serverId) {
+          const server = opts.registry.get(serverId)
+          if (!server) {
+            jsonResponse(res, 404, { error: `Server ${serverId} not found` })
+            return
+          }
+          truncated[serverId] = truncateChannelFiles(server.logPaths, channels)
+        } else {
+          truncated['__session'] = truncateChannelFiles(opts.session.files, channels)
+          for (const server of opts.registry.getAll()) {
+            truncated[server.id] = truncateChannelFiles(server.logPaths, channels)
+          }
+        }
+
+        opts.session.checkpointTs = Date.now()
+        jsonResponse(res, 200, { success: true, truncated })
+      } catch (err: any) {
+        jsonResponse(res, 500, { error: err.message ?? String(err) })
+      }
+    })
+    return true
+  }
+
   // GET /__admin/logs — query diagnostics for a project
   if (url.startsWith('/__admin/logs') && req.method === 'GET') {
     const params = new URL(url, 'http://localhost').searchParams
@@ -149,10 +180,17 @@ export function handleAdmin(
 
   // Serve admin assets (/__admin/assets/*, etc.)
   if (url.startsWith('/__admin/')) {
-    const assetPath = url.slice('/__admin/'.length)
+    const assetPath = url.slice('/__admin/'.length).split('?')[0]
     const filePath = join(ADMIN_DIR, assetPath)
     if (serveStatic(res, filePath)) return true
-    // Not found — don't handle (let it fall through)
+
+    // SPA fallback: non-asset paths (no file extension) serve index.html
+    // so client-side routing works for /__admin/project/foo, etc.
+    if (req.method === 'GET' && !extname(assetPath)) {
+      const indexPath = join(ADMIN_DIR, 'index.html')
+      if (serveStatic(res, indexPath)) return true
+    }
+
     return false
   }
 
