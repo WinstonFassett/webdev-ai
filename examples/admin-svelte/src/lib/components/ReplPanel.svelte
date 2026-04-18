@@ -7,6 +7,7 @@
   import { javascript } from '@codemirror/lang-javascript'
   import { oneDark } from '@codemirror/theme-one-dark'
   import { keymap } from '@codemirror/view'
+  import { insertNewlineAndIndent } from '@codemirror/commands'
 
   let { route, open = $bindable(false) }: { route: Route; open?: boolean } = $props()
 
@@ -144,10 +145,11 @@
           basicSetup,
           javascript(),
           oneDark,
-          keymap.of([{
-            key: 'Mod-Enter',
-            run: () => { runCode(); return true },
-          }]),
+          keymap.of([
+            { key: 'Enter', run: () => { runCode(); return true } },
+            { key: 'Shift-Enter', run: insertNewlineAndIndent },
+            { key: 'Mod-Enter', run: () => { runCode(); return true } },
+          ]),
           EditorView.theme({
             '&': { fontSize: '12px', maxHeight: '120px' },
             '.cm-scroller': { overflow: 'auto' },
@@ -214,7 +216,7 @@
     >
       {#if history.length === 0}
         <div class="text-muted-foreground/40 py-2">
-          Cmd+Enter to run. eval() in browser.
+          Enter to run · Shift+Enter for newline · eval() in browser
         </div>
       {:else}
         {#each history as entry, i (i)}
@@ -239,9 +241,15 @@
         <button
           onclick={runCode}
           disabled={running || availableTargets.length === 0}
-          class="text-[10px] px-2 py-0.5 rounded bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-30 shrink-0"
+          title="Run (Enter) · Shift+Enter for newline"
+          class="text-[10px] px-2 py-0.5 rounded bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-30 shrink-0 cursor-pointer flex items-center gap-1"
         >
-          {running ? '...' : 'Run'}
+          {#if running}
+            ...
+          {:else}
+            <span>Run</span>
+            <span class="text-[9px] opacity-70 font-mono">↵</span>
+          {/if}
         </button>
       </div>
     </div>
