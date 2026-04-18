@@ -6,15 +6,39 @@
     browserId?: string
     serverId?: string
     serverIds?: string[]
-    channel?: string
+    channels?: string[]
   }
 
   let { filter = {}, historyServerIds = [] }: { filter?: LogFilter; historyServerIds?: string[] } = $props()
 
-  function clearChannel() {
+  function setChannels(channels: string[] | undefined) {
     const r = currentRoute()
-    navigate({ ...r, channel: undefined })
+    navigate({ ...r, channels: channels && channels.length > 0 ? channels : undefined })
   }
+
+  function toggleChannel(ch: string) {
+    const current = new Set(filter.channels ?? allChannels)
+    if (current.has(ch)) current.delete(ch)
+    else current.add(ch)
+    const next = [...current]
+    if (next.length === allChannels.length && allChannels.every(c => current.has(c))) {
+      setChannels(undefined)
+    } else {
+      setChannels(next)
+    }
+  }
+
+  let pickerOpen = $state(false)
+  let pickerRef: HTMLDivElement | undefined = $state()
+
+  $effect(() => {
+    if (!pickerOpen) return
+    function onClick(e: MouseEvent) {
+      if (pickerRef && !pickerRef.contains(e.target as Node)) pickerOpen = false
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  })
 
   // Load history from NDJSON files for each server in scope
   let _historyLoaded: string = $state('')
@@ -43,6 +67,35 @@
   // All entries from the global stream
   let allEntries = getLogEntries()
 
+  // Entries after scope filter but BEFORE channels filter — used to enumerate
+  // available channels in the current scope.
+  let scopedEntries: LogEntry[] = $derived.by(() => {
+    const _len = allEntries.length
+    void _len
+    let r = allEntries
+    if (filter.browserId) r = r.filter(e => e.browserId === filter.browserId || e.connId === filter.browserId)
+    if (filter.serverId) r = r.filter(e => e.serverId === filter.serverId)
+    if (filter.serverIds && filter.serverIds.length > 0) {
+      const ids = new Set(filter.serverIds)
+      r = r.filter(e => e.serverId !== undefined && ids.has(e.serverId))
+    }
+    return r
+  })
+
+  let allChannels: string[] = $derived.by(() => {
+    const set = new Set<string>()
+    for (const e of scopedEntries) set.add(e.channel)
+    return [...set].sort()
+  })
+
+  let selectedChannels: string[] = $derived(filter.channels ?? allChannels)
+
+  let pickerLabel: string = $derived.by(() => {
+    if (!filter.channels || filter.channels.length === 0) return 'All channels'
+    if (filter.channels.length === 1) return filter.channels[0]
+    return `${filter.channels.length} channels`
+  })
+
   // Client-side filtered view
   let filteredEntries: LogEntry[] = $derived.by(() => {
     let result = allEntries
@@ -59,11 +112,9 @@
       result = result.filter(e => e.serverId !== undefined && ids.has(e.serverId))
     }
 
-    if (filter.channel) {
-      result = result.filter(e => e.channel === filter.channel)
-    } else {
-      // Exclude 'errors'/'error' channel — duplicates console errors
-      result = result.filter(e => e.channel !== 'errors' && e.channel !== 'error')
+    if (filter.channels && filter.channels.length > 0) {
+      const set = new Set(filter.channels)
+      result = result.filter(e => set.has(e.channel))
     }
 
     // Level threshold filter
@@ -208,17 +259,46 @@
       {/each}
     </select>
 
-    {#if filter.channel}
-      <span class="inline-flex items-center gap-1 text-[10px] bg-accent/20 text-accent-foreground border border-accent/40 rounded px-1.5 py-0.5">
-        channel: <span class="font-mono">{filter.channel}</span>
-        <button
-          onclick={clearChannel}
-          class="text-muted-foreground hover:text-foreground ml-0.5"
-          title="Clear channel filter"
-          aria-label="Clear channel filter"
-        >×</button>
-      </span>
-    {/if}
+    <!-- Channel picker -->
+    <div class="relative" bind:this={pickerRef}>
+      <button
+        onclick={() => pickerOpen = !pickerOpen}
+        class="text-[11px] bg-transparent text-muted-foreground border border-border rounded px-1.5 py-0.5 cursor-pointer hover:text-foreground focus:outline-none focus:border-accent inline-flex items-center gap-1"
+        title="Filter channels"
+      >
+        <span class={filter.channels && filter.channels.length > 0 ? 'text-foreground' : ''}>{pickerLabel}</span>
+        <span class="text-muted-foreground/60">▾</span>
+      </button>
+      {#if pickerOpen}
+        <div class="absolute left-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-10 py-1 min-w-48 max-h-80 overflow-y-auto">
+          <div class="flex items-center justify-between px-3 py-1 border-b border-border">
+            <button
+              onclick={() => setChannels(undefined)}
+              class="text-[10px] text-muted-foreground hover:text-foreground"
+            >All</button>
+            <button
+              onclick={() => setChannels([])}
+              class="text-[10px] text-muted-foreground hover:text-foreground"
+              title="Clear selection"
+            >None</button>
+          </div>
+          {#if allChannels.length === 0}
+            <div class="px-3 py-2 text-[11px] text-muted-foreground/50">No channels yet</div>
+          {:else}
+            {#each allChannels as ch}
+              {@const active = selectedChannels.includes(ch)}
+              <button
+                onclick={() => toggleChannel(ch)}
+                class="w-full flex items-center gap-2 px-3 py-1 text-[11px] hover:bg-muted/50 text-left {active ? 'text-foreground' : 'text-muted-foreground/50'}"
+              >
+                <span class="w-3 text-[10px]">{active ? '✓' : ''}</span>
+                <span class="font-mono">{ch}</span>
+              </button>
+            {/each}
+          {/if}
+        </div>
+      {/if}
+    </div>
 
     <div class="flex-1"></div>
 

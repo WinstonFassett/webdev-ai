@@ -42,7 +42,6 @@
       const ids = new Set(filter.serverIds)
       r = r.filter(e => e.serverId !== undefined && ids.has(e.serverId))
     }
-    r = r.filter(e => e.channel !== 'errors' && e.channel !== 'error')
     return r
   })
 

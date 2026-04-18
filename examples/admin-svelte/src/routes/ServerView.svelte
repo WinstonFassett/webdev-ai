@@ -23,7 +23,7 @@
   <ViewTabs {route} />
 
   {#if route.tab === 'logs' && server}
-    <LogStream filter={{ serverId: server.id, channel: route.channel }} historyServerIds={[server.id]} />
+    <LogStream filter={{ serverId: server.id, channels: route.channels }} historyServerIds={[server.id]} />
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !server}
@@ -65,7 +65,7 @@
           <div class="border-t border-border px-4 py-2 flex items-center justify-between gap-4 text-xs">
             <button
               type="button"
-              onclick={() => navigate({ ...route, tab: 'logs', channel })}
+              onclick={() => navigate({ ...route, tab: 'logs', channels: [channel] })}
               class="text-foreground hover:text-accent-foreground hover:underline cursor-pointer text-left"
               title="View logs for this channel"
             >{channel}</button>

@@ -8,7 +8,7 @@ export interface Route {
   type?: string
   browserId?: string
   tab: Tab
-  channel?: string
+  channels?: string[]
 }
 
 const EMPTY_ROUTE: Route = { view: 'gateway', tab: 'overview' }
@@ -24,15 +24,18 @@ export function parseHash(hash: string): Route {
   const raw = hash.replace(/^#\/?/, '')
   const [path, queryStr = ''] = raw.split('?')
   const params = new URLSearchParams(queryStr)
-  const channel = params.get('channel') ?? undefined
+  const channelsParam = params.get('channels')
+  const channels = channelsParam
+    ? channelsParam.split(',').map(s => s.trim()).filter(Boolean)
+    : undefined
 
-  if (!path || path === 'gateway') return { view: 'gateway', tab: 'overview', channel }
+  if (!path || path === 'gateway') return { view: 'gateway', tab: 'overview', channels }
 
   const rawParts = path.split('/')
   // Gateway with tab: #/gateway/logs
   if (rawParts[0] === 'gateway') {
     const { tab } = popTab(rawParts)
-    return { view: 'gateway', tab, channel }
+    return { view: 'gateway', tab, channels }
   }
 
   if (rawParts[0] === 'project' && rawParts[1]) {
@@ -41,11 +44,11 @@ export function parseHash(hash: string): Route {
     if (parts[2]) {
       const type = parts[2]
       if (parts[3]) {
-        return { view: 'browser', projectId, type, browserId: parts[3], tab, channel }
+        return { view: 'browser', projectId, type, browserId: parts[3], tab, channels }
       }
-      return { view: 'server', projectId, type, tab, channel }
+      return { view: 'server', projectId, type, tab, channels }
     }
-    return { view: 'project', projectId, tab, channel }
+    return { view: 'project', projectId, tab, channels }
   }
 
   return EMPTY_ROUTE
@@ -56,8 +59,9 @@ function withTab(base: string, tab: Tab): string {
 }
 
 function withQuery(base: string, route: Route): string {
-  if (route.tab === 'logs' && route.channel) {
-    return `${base}?channel=${encodeURIComponent(route.channel)}`
+  if (route.tab === 'logs' && route.channels && route.channels.length > 0) {
+    const val = route.channels.map(encodeURIComponent).join(',')
+    return `${base}?channels=${val}`
   }
   return base
 }
