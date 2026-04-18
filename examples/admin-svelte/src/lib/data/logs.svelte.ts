@@ -43,10 +43,18 @@ export function pushLogEvent(data: { channel: string; payload: any; browserId?: 
   _entries.push(entry)
 }
 
-/** Load historical logs for a server via RPC */
+const _loadedServers = new Set<string>()
+
+/** Load historical logs for a server via RPC (deduped; safe to call from multiple views) */
 export async function loadHistory(serverId?: string) {
+  if (!serverId || _loadedServers.has(serverId)) return
+  _loadedServers.add(serverId)
+
   const api = getApi()
-  if (!api) return
+  if (!api) {
+    _loadedServers.delete(serverId)
+    return
+  }
 
   try {
     const data = await api.getLogs({ serverId, limit: 200 }) as any
@@ -61,6 +69,7 @@ export async function loadHistory(serverId?: string) {
           channel: event.channel ?? channel,
           payload: event.payload,
           browserId: event.payload?.browserId,
+          serverId,
           timestamp: event.ts ?? Date.now(),
         })
       }
@@ -71,7 +80,7 @@ export async function loadHistory(serverId?: string) {
       _entries.sort((a, b) => a.timestamp - b.timestamp)
     }
   } catch {
-    // History is best-effort
+    _loadedServers.delete(serverId)
   }
 }
 

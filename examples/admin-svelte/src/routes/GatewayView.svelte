@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Route } from '../lib/data/router'
   import { getRegistry, projectDisplayName, type ProjectInfo } from '../lib/data/registry.svelte'
-  import { navigatePath } from '../lib/data/router'
+  import { navigate } from '../lib/data/router'
   import StatusDot from '../lib/components/StatusDot.svelte'
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import Duration from '../lib/components/Duration.svelte'
   import ViewTabs from '../lib/components/ViewTabs.svelte'
   import LogStream from '../lib/components/LogStream.svelte'
+  import LogSummary from '../lib/components/LogSummary.svelte'
 
   let { route }: { route: Route } = $props()
 
@@ -59,6 +60,8 @@
     </div>
   </div>
 
+  <LogSummary {route} filter={{ serverIds: allServerIds }} historyServerIds={allServerIds} />
+
   <!-- Projects -->
   {#if registry.projects.length > 0}
     <div>
@@ -66,8 +69,8 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {#each registry.projects as project}
           <button
-            onclick={() => navigatePath(`#/project/${project.projectId}`)}
-            class="border border-border rounded-lg p-4 bg-card hover:bg-muted/30 transition-colors text-left"
+            onclick={() => navigate({ ...route, view: 'project', projectId: project.projectId, type: undefined, browserId: undefined })}
+            class="border border-border rounded-lg p-4 bg-card hover:bg-muted/30 cursor-pointer transition-colors text-left"
           >
             <div class="flex items-start justify-between mb-3">
               <div>

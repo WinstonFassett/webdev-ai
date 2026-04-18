@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Route } from '../lib/data/router'
   import { getRegistry, projectDisplayName, type ServerInfo } from '../lib/data/registry.svelte'
-  import { navigatePath } from '../lib/data/router'
+  import { navigate } from '../lib/data/router'
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import StatusDot from '../lib/components/StatusDot.svelte'
   import RelativeTime from '../lib/components/RelativeTime.svelte'
   import ViewTabs from '../lib/components/ViewTabs.svelte'
   import LogStream from '../lib/components/LogStream.svelte'
+  import LogSummary from '../lib/components/LogSummary.svelte'
   let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
@@ -41,6 +42,8 @@
         <span>{project.browsers.length} browser{project.browsers.length !== 1 ? 's' : ''}</span>
       </div>
     </div>
+
+    <LogSummary {route} filter={{ serverIds }} historyServerIds={serverIds} />
 
     <!-- Servers -->
     {#each project.servers as server}
@@ -86,8 +89,8 @@
             {#each serverBrowsers as browser, i}
               {@const bid = browser.browserId ?? browser.connId}
               <button
-                onclick={() => navigatePath(`#/project/${project.projectId}/${server.type}/${bid}`)}
-                class="w-full text-left px-4 py-2 hover:bg-muted/30 transition-colors flex items-center gap-3 text-xs border-t border-border/50"
+                onclick={() => navigate({ ...route, view: 'browser', projectId: project.projectId, type: server.type, browserId: bid })}
+                class="w-full text-left px-4 py-2 hover:bg-muted/30 cursor-pointer transition-colors flex items-center gap-3 text-xs border-t border-border/50"
               >
                 <span class="text-foreground font-medium w-20 shrink-0">Browser {i + 1}</span>
                 <div class="flex-1 min-w-0">

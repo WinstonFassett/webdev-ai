@@ -1,6 +1,6 @@
 <script lang="ts">
   import { initTheme, toggleTheme } from './lib/data/theme'
-  import { parseHash, type Route } from './lib/data/router'
+  import { parseHash, routeToHash, type Route } from './lib/data/router'
   import { getRegistry, initRegistry, projectDisplayName, browserOrdinal } from './lib/data/registry.svelte'
   import { connect } from './lib/data/connection'
   import { trackNavigation } from './lib/data/nav-history'
@@ -60,7 +60,7 @@
       {#if route.view === 'gateway'}
         <span class="text-foreground font-medium">Dashboard</span>
       {:else}
-        <a href="#/gateway" class="text-muted-foreground hover:text-foreground transition-colors">Dashboard</a>
+        <a href={routeToHash({ ...route, view: 'gateway', projectId: undefined, type: undefined, browserId: undefined })} class="text-muted-foreground hover:text-foreground transition-colors">Dashboard</a>
       {/if}
 
       {#if project}
@@ -68,7 +68,7 @@
         {#if route.view === 'project'}
           <span class="text-foreground font-medium truncate">{projectDisplayName(project)}</span>
         {:else}
-          <a href="#/project/{project.projectId}" class="text-muted-foreground hover:text-foreground transition-colors truncate">{projectDisplayName(project)}</a>
+          <a href={routeToHash({ ...route, view: 'project', projectId: project.projectId, type: undefined, browserId: undefined })} class="text-muted-foreground hover:text-foreground transition-colors truncate">{projectDisplayName(project)}</a>
         {/if}
       {/if}
 
@@ -77,7 +77,7 @@
         {#if route.view === 'server'}
           <span class="text-foreground font-medium">{server.type}</span>
         {:else}
-          <a href="#/project/{project?.projectId}/{server.type}" class="text-muted-foreground hover:text-foreground transition-colors">{server.type}</a>
+          <a href={routeToHash({ ...route, view: 'server', projectId: project?.projectId, type: server.type, browserId: undefined })} class="text-muted-foreground hover:text-foreground transition-colors">{server.type}</a>
         {/if}
       {/if}
 

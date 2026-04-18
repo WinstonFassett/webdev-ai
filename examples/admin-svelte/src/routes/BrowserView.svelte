@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Route } from '../lib/data/router'
   import { getRegistry, browserOrdinal } from '../lib/data/registry.svelte'
-  import { navigatePath } from '../lib/data/router'
+  import { navigate } from '../lib/data/router'
   import ServerTypeBadge from '../lib/components/ServerTypeBadge.svelte'
   import RelativeTime from '../lib/components/RelativeTime.svelte'
   import Duration from '../lib/components/Duration.svelte'
   import ViewTabs from '../lib/components/ViewTabs.svelte'
   import LogStream from '../lib/components/LogStream.svelte'
+  import LogSummary from '../lib/components/LogSummary.svelte'
   let { route }: { route: Route } = $props()
 
   let registry = getRegistry()
@@ -44,6 +45,12 @@
       {/if}
     </div>
 
+    <LogSummary
+      {route}
+      filter={{ browserId: browser.browserId ?? browser.connId }}
+      historyServerIds={server ? [server.id] : []}
+    />
+
     <!-- Details -->
     <div class="border border-border rounded-lg bg-card divide-y divide-border">
       <div class="px-4 py-2.5 flex justify-between text-xs">
@@ -66,8 +73,8 @@
         <div class="px-4 py-2.5 flex justify-between text-xs">
           <span class="text-muted-foreground">Server</span>
           <button
-            onclick={() => navigatePath(`#/project/${route.projectId}/${server.type}`)}
-            class="font-mono text-accent hover:underline flex items-center gap-1.5"
+            onclick={() => navigate({ ...route, view: 'server', type: server.type, browserId: undefined })}
+            class="font-mono text-accent hover:underline cursor-pointer flex items-center gap-1.5"
           >
             {server.id}
             <ServerTypeBadge type={server.type} />
@@ -84,8 +91,8 @@
         <div class="px-4 py-2.5 flex justify-between text-xs">
           <span class="text-muted-foreground">Project</span>
           <button
-            onclick={() => navigatePath(`#/project/${project.projectId}`)}
-            class="font-mono text-accent hover:underline"
+            onclick={() => navigate({ ...route, view: 'project', projectId: project.projectId, type: undefined, browserId: undefined })}
+            class="font-mono text-accent hover:underline cursor-pointer"
           >{project.projectId}</button>
         </div>
       {/if}
