@@ -3,7 +3,7 @@
 export interface Route {
   view: 'gateway' | 'project' | 'server' | 'browser'
   projectId?: string
-  port?: string
+  type?: string
   browserId?: string
 }
 
@@ -17,11 +17,11 @@ export function parseHash(hash: string): Route {
   if (parts[0] === 'project' && parts[1]) {
     const projectId = parts[1]
     if (parts[2]) {
-      const port = parts[2]
+      const type = parts[2]
       if (parts[3]) {
-        return { view: 'browser', projectId, port, browserId: parts[3] }
+        return { view: 'browser', projectId, type, browserId: parts[3] }
       }
-      return { view: 'server', projectId, port }
+      return { view: 'server', projectId, type }
     }
     return { view: 'project', projectId }
   }
@@ -33,8 +33,8 @@ export function routeToHash(route: Route): string {
   switch (route.view) {
     case 'gateway': return '#/gateway'
     case 'project': return `#/project/${route.projectId}`
-    case 'server': return `#/project/${route.projectId}/${route.port}`
-    case 'browser': return `#/project/${route.projectId}/${route.port}/${route.browserId}`
+    case 'server': return `#/project/${route.projectId}/${route.type}`
+    case 'browser': return `#/project/${route.projectId}/${route.type}/${route.browserId}`
   }
 }
 

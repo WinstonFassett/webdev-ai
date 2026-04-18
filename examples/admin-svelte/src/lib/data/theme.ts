@@ -5,7 +5,7 @@ type Theme = 'light' | 'dark'
 const STORAGE_KEY = 'web-dev-mcp-theme'
 
 function getSystemTheme(): Theme {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'dark'
 }
 
 function getStoredTheme(): Theme | null {

@@ -48,6 +48,7 @@ export interface RegistryState {
   mode: string
   mcpSessions: number
   connected: boolean
+  hydrated: boolean
 }
 
 function groupByProject(servers: ServerInfo[], browsers: BrowserInfo[]): ProjectInfo[] {
@@ -63,7 +64,8 @@ function groupByProject(servers: ServerInfo[], browsers: BrowserInfo[]): Project
 
   for (const b of browsers) {
     const server = servers.find(s => s.id === b.serverId)
-    const pid = server?.projectId || '__unknown'
+    if (!server) continue // Every browser has a valid server affiliation
+    const pid = server.projectId
     if (!map.has(pid)) {
       map.set(pid, { projectId: pid, name: pid, servers: [], browsers: [] })
     }
@@ -82,6 +84,7 @@ let _state: RegistryState = $state({
   mode: 'hub',
   mcpSessions: 0,
   connected: false,
+  hydrated: false,
 })
 
 export function getRegistry(): RegistryState {
@@ -91,6 +94,21 @@ export function getRegistry(): RegistryState {
 /** Get primary port for a server (first endpoint) */
 export function serverPort(server: ServerInfo): number | undefined {
   return server.endpoints[0]?.port
+}
+
+/** Display name for a project: name → basename → projectId */
+export function projectDisplayName(project: ProjectInfo): string {
+  if (project.name && project.name !== project.projectId) return project.name
+  const dir = project.servers[0]?.directory
+  if (dir) return dir.split('/').pop() ?? project.projectId
+  return project.projectId
+}
+
+/** Get browser ordinal (1-based) within its server siblings, sorted by connectedAt */
+export function browserOrdinal(browser: BrowserInfo, siblings: BrowserInfo[]): number {
+  const sorted = [...siblings].sort((a, b) => a.connectedAt - b.connectedAt)
+  const bid = browser.browserId ?? browser.connId
+  return sorted.findIndex(b => (b.browserId ?? b.connId) === bid) + 1
 }
 
 function updateProjects() {
@@ -104,6 +122,7 @@ function applySnapshot(data: Awaited<ReturnType<AdminAPI['getState']>>) {
   _state.mode = data.mode ?? 'hub'
   _state.mcpSessions = data.mcp_sessions ?? 0
   _state.connected = true
+  _state.hydrated = true
   updateProjects()
 }
 

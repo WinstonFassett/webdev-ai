@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import { initTheme, toggleTheme } from './lib/data/theme'
-  import { parseHash, navigate, type Route } from './lib/data/router'
-  import { getRegistry, initRegistry } from './lib/data/registry.svelte'
+  import { parseHash, type Route } from './lib/data/router'
+  import { getRegistry, initRegistry, projectDisplayName, browserOrdinal } from './lib/data/registry.svelte'
   import { connect } from './lib/data/connection'
   import { trackNavigation } from './lib/data/nav-history'
   import SidebarTree from './lib/components/SidebarTree.svelte'
@@ -18,13 +17,11 @@
   let registry = getRegistry()
   let replOpen = $state(false)
 
-  // Palette callbacks
   const paletteCallbacks = {
     onToggleTheme: () => { theme = toggleTheme(theme) },
     onToggleRepl: () => { replOpen = !replOpen },
   }
 
-  // Listen for hash changes + track nav history
   $effect(() => {
     const onHashChange = () => {
       route = parseHash(location.hash)
@@ -34,73 +31,61 @@
     return () => window.removeEventListener('hashchange', onHashChange)
   })
 
-  // Init: connect via capnweb WS, hydrate registry, start event stream
   initRegistry()
   connect()
 
-  // Auto-select: prefer deepest leaf available, gateway is last resort.
-  // Only fires once. Uses untrack for route to prevent navigate → hashchange
-  // → route update → re-trigger cycle.
-  let autoSelected = false
-
-  $effect(() => {
-    const projects = registry.projects
-    if (autoSelected) return
-
-    untrack(() => {
-      const currentHash = location.hash
-      if (route.view !== 'gateway' && currentHash && currentHash !== '#/' && currentHash !== '#') return
-      if (projects.length === 0) {
-        if (!currentHash || currentHash === '#/' || currentHash === '#') {
-          location.hash = '#/gateway'
-        }
-        return
-      }
-
-      autoSelected = true
-      const proj = projects[0]
-      const srv = proj.servers[0]
-      if (!srv) {
-        navigate({ view: 'project', projectId: proj.projectId })
-        return
-      }
-      if (proj.browsers.length > 0) {
-        const br = proj.browsers[0]
-        const port = srv.endpoints[0]?.port
-        navigate({ view: 'browser', projectId: proj.projectId, port: port ? String(port) : srv.id, browserId: br.browserId ?? br.connId })
-      } else {
-        navigate({ view: 'project', projectId: proj.projectId })
-      }
-    })
-  })
+  if (!location.hash || location.hash === '#' || location.hash === '#/') {
+    location.hash = '#/gateway'
+  }
 
   function onToggleTheme() {
     theme = toggleTheme(theme)
   }
+
+  // Breadcrumb helpers
+  let project = $derived(route.projectId ? registry.projects.find(p => p.projectId === route.projectId) : undefined)
+  let server = $derived(project && route.type ? project.servers.find(s => s.type === route.type) : undefined)
+  let browser = $derived(route.browserId ? registry.browsers.find(b => (b.browserId ?? b.connId) === route.browserId) : undefined)
+  let browserLabel = $derived.by(() => {
+    if (!browser || !server || !project) return ''
+    const siblings = project.browsers.filter(b => b.serverId === server!.id)
+    return `Browser ${browserOrdinal(browser, siblings)}`
+  })
 </script>
 
 <div class="h-screen flex flex-col overflow-hidden">
   <!-- Top bar -->
   <header class="h-8 flex items-center justify-between px-3 border-b border-border shrink-0">
-    <div class="flex items-center gap-2">
-      <a href="#/gateway" class="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-        web-dev-mcp
-      </a>
-      <span class="text-xs text-muted-foreground/50">/</span>
-      <span class="text-xs text-foreground">
-        {#if route.view === 'gateway'}
-          __gateway
-        {:else if route.view === 'project'}
-          {route.projectId}
-        {:else if route.view === 'server'}
-          <a href="#/project/{route.projectId}" class="hover:text-accent transition-colors">{route.projectId}</a><span class="text-muted-foreground">:{route.port}</span>
-        {:else if route.view === 'browser'}
-          <a href="#/project/{route.projectId}/{route.port}" class="hover:text-accent transition-colors">{route.projectId}<span class="text-muted-foreground">:{route.port}</span></a>
-          <span class="text-muted-foreground/50 mx-0.5">/</span>
-          {route.browserId?.slice(0, 6)}
+    <nav class="flex items-center gap-1 text-xs min-w-0">
+      {#if route.view === 'gateway'}
+        <span class="text-foreground font-medium">Dashboard</span>
+      {:else}
+        <a href="#/gateway" class="text-muted-foreground hover:text-foreground transition-colors">Dashboard</a>
+      {/if}
+
+      {#if project}
+        <span class="text-muted-foreground/50">/</span>
+        {#if route.view === 'project'}
+          <span class="text-foreground font-medium truncate">{projectDisplayName(project)}</span>
+        {:else}
+          <a href="#/project/{project.projectId}" class="text-muted-foreground hover:text-foreground transition-colors truncate">{projectDisplayName(project)}</a>
         {/if}
-      </span>
-    </div>
+      {/if}
+
+      {#if server}
+        <span class="text-muted-foreground/50">/</span>
+        {#if route.view === 'server'}
+          <span class="text-foreground font-medium">{server.type}</span>
+        {:else}
+          <a href="#/project/{project?.projectId}/{server.type}" class="text-muted-foreground hover:text-foreground transition-colors">{server.type}</a>
+        {/if}
+      {/if}
+
+      {#if browser && route.view === 'browser'}
+        <span class="text-muted-foreground/50">/</span>
+        <span class="text-foreground font-medium">{browserLabel}</span>
+      {/if}
+    </nav>
     <div class="flex items-center gap-2">
       <button
         onclick={onToggleTheme}
@@ -115,24 +100,38 @@
   <!-- Main area: sidebar + content -->
   <div class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-44 border-r border-border shrink-0 overflow-y-auto p-2">
+    <aside class="w-48 border-r border-border shrink-0 overflow-y-auto p-2">
       <SidebarTree {registry} {route} />
     </aside>
 
     <!-- Content -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <!-- Route content -->
-      <div class="flex-1 overflow-y-auto">
-        {#if route.view === 'gateway'}
-          <GatewayView {route} />
-        {:else if route.view === 'project'}
-          <ProjectView {route} />
-        {:else if route.view === 'server'}
-          <ServerView {route} />
-        {:else if route.view === 'browser'}
-          <BrowserView {route} />
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+      <!-- Loading state -->
+      {#if !registry.hydrated}
+        <div class="flex-1 flex items-center justify-center">
+          <span class="text-sm text-muted-foreground animate-pulse">Connecting...</span>
+        </div>
+      {:else}
+        <!-- Route content -->
+        <div class="flex-1 overflow-y-auto">
+          {#if route.view === 'gateway'}
+            <GatewayView {route} />
+          {:else if route.view === 'project'}
+            <ProjectView {route} />
+          {:else if route.view === 'server'}
+            <ServerView {route} />
+          {:else if route.view === 'browser'}
+            <BrowserView {route} />
+          {/if}
+        </div>
+
+        <!-- Disconnected overlay -->
+        {#if !registry.connected}
+          <div class="absolute inset-0 bg-background/60 flex items-center justify-center z-10">
+            <span class="text-sm text-muted-foreground animate-pulse">Reconnecting...</span>
+          </div>
         {/if}
-      </div>
+      {/if}
 
       <!-- REPL panel -->
       <ReplPanel {route} bind:open={replOpen} />
@@ -147,8 +146,8 @@
     </span>
     <span>{registry.projects.length} project{registry.projects.length !== 1 ? 's' : ''}</span>
     <span>{registry.browsers.length} browser{registry.browsers.length !== 1 ? 's' : ''}</span>
-    {#if registry.uptimeMs > 0}
-      <span>uptime {Math.floor(registry.uptimeMs / 60000)}m</span>
+    {#if registry.mcpSessions > 0}
+      <span>{registry.mcpSessions} MCP session{registry.mcpSessions !== 1 ? 's' : ''}</span>
     {/if}
   </footer>
 </div>
