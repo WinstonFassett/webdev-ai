@@ -2,9 +2,8 @@
   import { untrack } from 'svelte'
   import { initTheme, toggleTheme } from './lib/data/theme'
   import { parseHash, navigate, type Route } from './lib/data/router'
-  import { getRegistry, refreshRegistry } from './lib/data/registry.svelte'
-  import { onConnectionChange } from './lib/data/gateway'
-  import { startLogging } from './lib/data/logs.svelte'
+  import { getRegistry, initRegistry } from './lib/data/registry.svelte'
+  import { connect } from './lib/data/connection'
   import { trackNavigation } from './lib/data/nav-history'
   import SidebarTree from './lib/components/SidebarTree.svelte'
   import ReplPanel from './lib/components/ReplPanel.svelte'
@@ -17,7 +16,6 @@
   let theme = $state(initTheme())
   let route: Route = $state(parseHash(location.hash))
   let registry = getRegistry()
-  let gwConnected = $state(false)
   let replOpen = $state(false)
 
   // Palette callbacks
@@ -36,17 +34,9 @@
     return () => window.removeEventListener('hashchange', onHashChange)
   })
 
-  // Track gateway connection status
-  $effect(() => {
-    return onConnectionChange((connected) => {
-      gwConnected = connected
-      if (connected) refreshRegistry()
-    })
-  })
-
-  // Init: fetch registry, then start log stream outside reactive context
-  refreshRegistry()
-  startLogging()
+  // Init: connect via capnweb WS, hydrate registry, start event stream
+  initRegistry()
+  connect()
 
   // Auto-select: prefer deepest leaf available, gateway is last resort.
   // Only fires once. Uses untrack for route to prevent navigate → hashchange
@@ -76,7 +66,8 @@
       }
       if (proj.browsers.length > 0) {
         const br = proj.browsers[0]
-        navigate({ view: 'browser', projectId: proj.projectId, port: String(srv.port), browserId: br.browserId ?? br.connId })
+        const port = srv.endpoints[0]?.port
+        navigate({ view: 'browser', projectId: proj.projectId, port: port ? String(port) : srv.id, browserId: br.browserId ?? br.connId })
       } else {
         navigate({ view: 'project', projectId: proj.projectId })
       }
@@ -151,8 +142,8 @@
   <!-- Status footer -->
   <footer class="h-6 border-t border-border flex items-center px-3 shrink-0 text-[10px] text-muted-foreground gap-3">
     <span class="flex items-center gap-1">
-      <span class="w-1.5 h-1.5 rounded-full {gwConnected ? 'bg-success' : 'bg-destructive'}"></span>
-      {gwConnected ? 'connected' : 'disconnected'}
+      <span class="w-1.5 h-1.5 rounded-full {registry.connected ? 'bg-success' : 'bg-destructive'}"></span>
+      {registry.connected ? 'connected' : 'disconnected'}
     </span>
     <span>{registry.projects.length} project{registry.projects.length !== 1 ? 's' : ''}</span>
     <span>{registry.browsers.length} browser{registry.browsers.length !== 1 ? 's' : ''}</span>

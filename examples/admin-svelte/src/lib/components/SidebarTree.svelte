@@ -68,7 +68,7 @@
             {isActive('project', project.projectId) || isActive('server', project.projectId) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'}"
         >
           <span>{project.name}</span>
-          <span class="text-muted-foreground/60 ml-1">:{server.port}</span>
+          <span class="text-muted-foreground/60 ml-1">:{server.endpoints[0]?.port}</span>
           {#if browsers.length > 0}
             <span class="text-muted-foreground/40 ml-1">({browsers.length})</span>
           {/if}
@@ -77,9 +77,9 @@
         <!-- Browsers under single-server project -->
         {#each browsers as browser}
           <button
-            onclick={() => navigatePath(`#/project/${project.projectId}/${server.port}/${browser.browserId ?? browser.connId}`)}
+            onclick={() => navigatePath(`#/project/${project.projectId}/${server.endpoints[0]?.port}/${browser.browserId ?? browser.connId}`)}
             class="w-full text-left pl-5 pr-2 py-0.5 rounded hover:bg-muted transition-colors truncate text-[11px]
-              {isActive('browser', project.projectId, String(server.port), browser.browserId ?? browser.connId) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
+              {isActive('browser', project.projectId, String(server.endpoints[0]?.port), browser.browserId ?? browser.connId) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
           >
             {browserLabel(browser)}
           </button>
@@ -103,11 +103,11 @@
           {#each project.servers as srv}
             {@const srvBrowsers = browsersForServer(srv, registry.browsers)}
             <button
-              onclick={() => navigatePath(`#/project/${project.projectId}/${srv.port}`)}
+              onclick={() => navigatePath(`#/project/${project.projectId}/${srv.endpoints[0]?.port}`)}
               class="w-full text-left pl-4 pr-2 py-0.5 rounded hover:bg-muted transition-colors truncate text-[11px]
-                {isActive('server', project.projectId, String(srv.port)) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
+                {isActive('server', project.projectId, String(srv.endpoints[0]?.port)) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
             >
-              :{srv.port}
+              :{srv.endpoints[0]?.port}
               {#if srvBrowsers.length > 0}
                 <span class="text-muted-foreground/40 ml-1">({srvBrowsers.length})</span>
               {/if}
@@ -115,9 +115,9 @@
 
             {#each srvBrowsers as browser}
               <button
-                onclick={() => navigatePath(`#/project/${project.projectId}/${srv.port}/${browser.browserId ?? browser.connId}`)}
+                onclick={() => navigatePath(`#/project/${project.projectId}/${srv.endpoints[0]?.port}/${browser.browserId ?? browser.connId}`)}
                 class="w-full text-left pl-7 pr-2 py-0.5 rounded hover:bg-muted transition-colors truncate text-[11px]
-                  {isActive('browser', project.projectId, String(srv.port), browser.browserId ?? browser.connId) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
+                  {isActive('browser', project.projectId, String(srv.endpoints[0]?.port), browser.browserId ?? browser.connId) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
               >
                 {browserLabel(browser)}
               </button>

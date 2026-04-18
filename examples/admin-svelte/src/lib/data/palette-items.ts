@@ -35,7 +35,7 @@ function navItems(registry: RegistryState): action[] {
   for (const project of registry.projects) {
     const isSingle = project.servers.length <= 1
     const srv = serverForProject(project)
-    const port = srv ? `:${srv.port}` : ''
+    const port = srv?.endpoints[0]?.port ? `:${srv.endpoints[0].port}` : ''
     const browserCount = project.browsers.length
 
     // Project item
@@ -55,12 +55,12 @@ function navItems(registry: RegistryState): action[] {
       for (const server of project.servers) {
         const srvBrowsers = browsersForServer(server, project.browsers)
         items.push({
-          actionId: `nav-server-${project.projectId}-${server.port}`,
-          title: `${project.name} :${server.port}`,
+          actionId: `nav-server-${project.projectId}-${server.endpoints[0]?.port}`,
+          title: `${project.name} :${server.endpoints[0]?.port}`,
           description: `${server.type} · ${srvBrowsers.length} browser${srvBrowsers.length !== 1 ? 's' : ''}`,
           group: 'Navigate',
-          keywords: [project.name, String(server.port), server.type],
-          onRun: () => navigatePath(`#/project/${project.projectId}/${server.port}`),
+          keywords: [project.name, String(server.endpoints[0]?.port), server.type],
+          onRun: () => navigatePath(`#/project/${project.projectId}/${server.endpoints[0]?.port}`),
         })
       }
     }
@@ -68,7 +68,7 @@ function navItems(registry: RegistryState): action[] {
     // Browser items
     for (const browser of project.browsers) {
       const bServer = project.servers.find(s => s.id === browser.serverId)
-      const bPort = bServer ? `:${bServer.port}` : ''
+      const bPort = bServer ? `:${bServer.endpoints[0]?.port}` : ''
       const browserId = browser.browserId ?? browser.connId
       items.push({
         actionId: `nav-browser-${browserId}`,
@@ -76,7 +76,7 @@ function navItems(registry: RegistryState): action[] {
         subTitle: browserId.slice(0, 8),
         group: 'Navigate',
         keywords: [project.name, bPort, browserId, 'browser'],
-        onRun: () => navigatePath(`#/project/${project.projectId}/${bServer?.port ?? ''}/${browserId}`),
+        onRun: () => navigatePath(`#/project/${project.projectId}/${bServer?.endpoints[0]?.port ?? ''}/${browserId}`),
       })
     }
   }
@@ -143,11 +143,11 @@ function activeItems(registry: RegistryState): action[] {
     const ago = formatAgo(browser.connectedAt)
     items.push({
       actionId: `active-${browserId}`,
-      title: `${project.name} :${server.port}`,
+      title: `${project.name} :${server.endpoints[0]?.port}`,
       subTitle: `${browserId.slice(0, 8)} · connected ${ago}`,
       group: 'Active',
-      keywords: [project.name, String(server.port), browserId, 'active', 'connected'],
-      onRun: () => navigatePath(`#/project/${project.projectId}/${server.port}/${browserId}`),
+      keywords: [project.name, String(server.endpoints[0]?.port), browserId, 'active', 'connected'],
+      onRun: () => navigatePath(`#/project/${project.projectId}/${server.endpoints[0]?.port}/${browserId}`),
     })
   }
   return items

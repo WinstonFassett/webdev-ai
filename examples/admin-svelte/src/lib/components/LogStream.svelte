@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getLogEntries, clearEntries, loadProjectHistory, type LogEntry } from '../data/logs.svelte'
+  import { getLogEntries, clearEntries, loadHistory, type LogEntry } from '../data/logs.svelte'
 
   interface LogFilter {
     browserId?: string
@@ -13,7 +13,7 @@
   $effect(() => {
     if (historyServerId && historyServerId !== _historyLoaded) {
       _historyLoaded = historyServerId
-      loadProjectHistory(historyServerId)
+      loadHistory(historyServerId)
     }
   })
 

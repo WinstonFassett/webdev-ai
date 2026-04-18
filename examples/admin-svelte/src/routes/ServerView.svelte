@@ -6,7 +6,7 @@
 
   let registry = getRegistry()
   let serverId = $derived(
-    registry.projects.find(p => p.projectId === route.projectId)?.servers.find(s => String(s.port) === route.port)?.id
+    registry.projects.find(p => p.projectId === route.projectId)?.servers.find(s => String(s.endpoints[0]?.port) === route.port)?.id
   )
 </script>
 

@@ -14,11 +14,12 @@ import { NetworkWriter } from './writers/network.js'
 import { DevEventsWriter, type BuildEventPayload } from './writers/dev-events.js'
 import { ServerConsoleWriter } from './writers/server-console.js'
 import { createMcpMiddleware, sendNotificationToAll, type McpContext } from './mcp-server.js'
-import { setupRpcWebSocket, onBrowserEvent, emitLogEvent } from './rpc-server.js'
+import { setupRpcWebSocket, emitLogEvent } from './rpc-server.js'
 import { handleAdmin } from './admin.js'
 import { ServerRegistry, type RegisteredServer, makeServerId, makeProjectId, initProjectLogDir } from './registry.js'
 import { handleElementGrabRequest } from './element-grab.js'
 import { CDPRelay } from './cdp-relay.js'
+import { initAdminRpc, setupAdminWebSocket } from './admin-rpc.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -85,69 +86,6 @@ export async function startGateway(options: GatewayOptions) {
     // Not installed — no proxy, that's fine
   }
 
-  // Admin SSE clients for real-time event streaming
-  const adminClients = new Set<{ res: http.ServerResponse; browserId?: string; lastSentId: number }>()
-
-  // SSE replay buffer. Events are on disk (NDJSON) before they reach here.
-  // Buffer exists only for seamless Last-Event-ID replay on reconnect.
-  // Two eviction strategies, both run after every broadcast:
-  //   1. Drop everything all connected clients have received
-  //   2. Hard cap at 1MB to bound memory regardless of client state
-  const SSE_BUFFER_MAX_BYTES = 1024 * 1024
-  const sseBuffer: Array<{ id: number; event: string; json: string; size: number }> = []
-  let sseSeq = 0
-  let sseBufferBytes = 0
-
-  function evictBuffer() {
-    // Evict consumed: if no clients, clear all; otherwise drop below min client cursor
-    if (adminClients.size === 0) {
-      sseBuffer.length = 0
-      sseBufferBytes = 0
-      return
-    }
-    let minId = Infinity
-    for (const client of adminClients) {
-      if (client.lastSentId < minId) minId = client.lastSentId
-    }
-    while (sseBuffer.length > 0 && sseBuffer[0].id <= minId) {
-      sseBufferBytes -= sseBuffer.shift()!.size
-    }
-    // Hard cap: evict oldest if over budget (slow/stale client)
-    while (sseBufferBytes > SSE_BUFFER_MAX_BYTES && sseBuffer.length > 0) {
-      sseBufferBytes -= sseBuffer.shift()!.size
-    }
-  }
-
-  function broadcastToAdmin(event: string, data: any) {
-    const id = ++sseSeq
-    const json = JSON.stringify(data)
-    const size = json.length + event.length + 20
-
-    sseBuffer.push({ id, event, json, size })
-    sseBufferBytes += size
-
-    for (const client of adminClients) {
-      if (client.browserId && data.browserId && client.browserId !== data.browserId) continue
-      client.res.write(`id: ${id}\nevent: ${event}\ndata: ${json}\n\n`)
-      client.lastSentId = id
-    }
-
-    evictBuffer()
-  }
-
-  function replayFrom(lastId: number, res: http.ServerResponse, browserId?: string) {
-    for (const entry of sseBuffer) {
-      if (entry.id <= lastId) continue
-      if (browserId) {
-        try {
-          const data = JSON.parse(entry.json)
-          if (data.browserId && data.browserId !== browserId) continue
-        } catch { continue }
-      }
-      res.write(`id: ${entry.id}\nevent: ${entry.event}\ndata: ${entry.json}\n\n`)
-    }
-  }
-
   // Create server registry for hybrid architecture
   const registry = new ServerRegistry()
 
@@ -187,6 +125,9 @@ export async function startGateway(options: GatewayOptions) {
     devEventsWriter: writers.devEvents,
     registry,
   }
+
+  // Initialize admin RPC (capnweb over WS)
+  initAdminRpc({ registry, session, startedAt: session.startedAt })
 
   const mcpMiddleware = createMcpMiddleware(mcpPath, mcpCtx)
 
@@ -405,30 +346,6 @@ export async function startGateway(options: GatewayOptions) {
     // Admin UI
     if (handleAdmin(req, res, url, { startedAt: session.startedAt, registry, port, session })) return
 
-    // Admin SSE event stream
-    if (url.startsWith('/__admin/events')) {
-      const params = new URL(url, 'http://localhost').searchParams
-      const browserId = params.get('browser_id') || undefined
-      const lastEventId = parseInt(req.headers['last-event-id'] as string, 10)
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-      })
-      res.write(`id: ${sseSeq}\nevent: connected\ndata: {}\n\n`)
-      const client = { res, browserId, lastSentId: sseSeq }
-      // Replay missed events from buffer if reconnecting
-      if (lastEventId > 0) {
-        replayFrom(lastEventId, res, browserId)
-        client.lastSentId = sseSeq
-      }
-      adminClients.add(client)
-      const keepalive = setInterval(() => res.write(':keepalive\n\n'), 30000)
-      req.on('close', () => { adminClients.delete(client); clearInterval(keepalive) })
-      return
-    }
-
     // Landing page
     if (url === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html' })
@@ -500,6 +417,9 @@ export async function startGateway(options: GatewayOptions) {
     server = http.createServer(handleRequest)
   }
 
+  // Setup admin RPC WebSocket (capnweb, /__admin/ws)
+  setupAdminWebSocket(server)
+
   // Setup events WebSocket (browser → server for console/errors/network)
   const eventsWss = new WebSocketServer({ noServer: true })
 
@@ -512,12 +432,6 @@ export async function startGateway(options: GatewayOptions) {
   // Setup CDP relay (extension ↔ Playwright bridge)
   const cdpRelay = new CDPRelay({ gatewayPort: port })
   mcpCtx.cdpRelay = cdpRelay
-
-  // Broadcast browser connect/disconnect to admin SSE
-  onBrowserEvent((event, data) => {
-    const eventName = event === 'connect' ? 'browser_connect' : event === 'init' ? 'browser_init' : 'browser_disconnect'
-    broadcastToAdmin(eventName, data)
-  })
 
   // Upgrade handler for events + dev-events + proxy WS
   server.on('upgrade', (request: http.IncomingMessage, socket: any, head: Buffer) => {
@@ -538,6 +452,8 @@ export async function startGateway(options: GatewayOptions) {
       })
     } else if (url === '/__rpc' || url.startsWith('/__rpc?')) {
       // Handled by setupRpcWebSocket upgrade listener
+    } else if (url === '/__admin/ws' || url.startsWith('/__admin/ws?')) {
+      // Handled by setupAdminWebSocket upgrade listener
     } else {
       socket.destroy()
     }
@@ -577,8 +493,7 @@ export async function startGateway(options: GatewayOptions) {
           w.network.write(payload)
         }
 
-        // Push to admin SSE clients + stream subscribers
-        broadcastToAdmin('log', { channel, payload, browserId })
+        // Push to admin WS stream subscribers
         emitLogEvent({ channel, payload, browserId })
       } catch {
         // Ignore malformed messages

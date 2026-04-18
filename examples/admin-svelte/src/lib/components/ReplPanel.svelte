@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { evalInBrowser } from '../data/gateway'
+  import { getApi } from '../data/connection'
   import { getRegistry, type BrowserInfo } from '../data/registry.svelte'
   import type { Route } from '../data/router'
   import { EditorView, basicSetup } from 'codemirror'
@@ -40,7 +40,7 @@
         if (route.view === 'browser' && (br.browserId ?? br.connId) !== route.browserId) continue
 
         const server = proj.servers.find(s => s.id === br.serverId)
-        const port = server?.port ? `:${server.port}` : ''
+        const port = server?.endpoints[0]?.port ? `:${server.endpoints[0].port}` : ''
         const bid = (br.browserId ?? br.connId)?.slice(0, 6) ?? '?'
         targets.push({
           label: `${proj.projectId}${port} / ${bid}`,
@@ -78,8 +78,10 @@
 
     running = true
     try {
-      const result = await evalInBrowser(code, target.serverId)
-      const formatted = tryParseJson(result) ?? String(result)
+      const api = getApi()
+      if (!api) throw new Error('Not connected')
+      const result = await api.evalInBrowser(code, target.serverId)
+      const formatted = tryParseJson(String(result)) ?? String(result)
 
       history.push({
         code,
