@@ -19,3 +19,6 @@ examples/*/.claude/
 examples/*/.cursor/
 examples/*/.windsurf/
 .web-dev-mcp
+
+# Claude Code worktrees (local-only)
+.claude/worktrees/
