@@ -25,7 +25,7 @@
   <ViewTabs {route} />
 
   {#if route.tab === 'logs' && browser}
-    <LogStream filter={{ browserId: browser.browserId ?? browser.connId }} historyServerIds={server ? [server.id] : []} />
+    <LogStream filter={{ browserId: browser.browserId ?? browser.connId, channel: route.channel }} historyServerIds={server ? [server.id] : []} />
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !browser}
@@ -44,12 +44,6 @@
         <div class="text-xs text-muted-foreground font-mono">{browser.url}</div>
       {/if}
     </div>
-
-    <LogSummary
-      {route}
-      filter={{ browserId: browser.browserId ?? browser.connId }}
-      historyServerIds={server ? [server.id] : []}
-    />
 
     <!-- Details -->
     <div class="border border-border rounded-lg bg-card divide-y divide-border">
@@ -97,6 +91,12 @@
         </div>
       {/if}
     </div>
+
+    <LogSummary
+      {route}
+      filter={{ browserId: browser.browserId ?? browser.connId }}
+      historyServerIds={server ? [server.id] : []}
+    />
   {/if}
   </div>
   {/if}

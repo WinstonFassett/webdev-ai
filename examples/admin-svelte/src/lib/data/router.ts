@@ -8,6 +8,7 @@ export interface Route {
   type?: string
   browserId?: string
   tab: Tab
+  channel?: string
 }
 
 const EMPTY_ROUTE: Route = { view: 'gateway', tab: 'overview' }
@@ -20,14 +21,18 @@ function popTab(parts: string[]): { parts: string[]; tab: Tab } {
 }
 
 export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#\/?/, '')
-  if (!path || path === 'gateway') return { view: 'gateway', tab: 'overview' }
+  const raw = hash.replace(/^#\/?/, '')
+  const [path, queryStr = ''] = raw.split('?')
+  const params = new URLSearchParams(queryStr)
+  const channel = params.get('channel') ?? undefined
+
+  if (!path || path === 'gateway') return { view: 'gateway', tab: 'overview', channel }
 
   const rawParts = path.split('/')
   // Gateway with tab: #/gateway/logs
   if (rawParts[0] === 'gateway') {
     const { tab } = popTab(rawParts)
-    return { view: 'gateway', tab }
+    return { view: 'gateway', tab, channel }
   }
 
   if (rawParts[0] === 'project' && rawParts[1]) {
@@ -36,11 +41,11 @@ export function parseHash(hash: string): Route {
     if (parts[2]) {
       const type = parts[2]
       if (parts[3]) {
-        return { view: 'browser', projectId, type, browserId: parts[3], tab }
+        return { view: 'browser', projectId, type, browserId: parts[3], tab, channel }
       }
-      return { view: 'server', projectId, type, tab }
+      return { view: 'server', projectId, type, tab, channel }
     }
-    return { view: 'project', projectId, tab }
+    return { view: 'project', projectId, tab, channel }
   }
 
   return EMPTY_ROUTE
@@ -50,13 +55,22 @@ function withTab(base: string, tab: Tab): string {
   return tab === 'logs' ? `${base}/logs` : base
 }
 
-export function routeToHash(route: Route): string {
-  switch (route.view) {
-    case 'gateway': return withTab('#/gateway', route.tab)
-    case 'project': return withTab(`#/project/${route.projectId}`, route.tab)
-    case 'server': return withTab(`#/project/${route.projectId}/${route.type}`, route.tab)
-    case 'browser': return withTab(`#/project/${route.projectId}/${route.type}/${route.browserId}`, route.tab)
+function withQuery(base: string, route: Route): string {
+  if (route.tab === 'logs' && route.channel) {
+    return `${base}?channel=${encodeURIComponent(route.channel)}`
   }
+  return base
+}
+
+export function routeToHash(route: Route): string {
+  let base: string
+  switch (route.view) {
+    case 'gateway': base = withTab('#/gateway', route.tab); break
+    case 'project': base = withTab(`#/project/${route.projectId}`, route.tab); break
+    case 'server': base = withTab(`#/project/${route.projectId}/${route.type}`, route.tab); break
+    case 'browser': base = withTab(`#/project/${route.projectId}/${route.type}/${route.browserId}`, route.tab); break
+  }
+  return withQuery(base, route)
 }
 
 export function navigate(route: Route) {

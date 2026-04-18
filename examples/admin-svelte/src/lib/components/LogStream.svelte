@@ -1,13 +1,20 @@
 <script lang="ts">
   import { getLogEntries, clearEntries, loadHistory, type LogEntry } from '../data/logs.svelte'
+  import { navigate, currentRoute } from '../data/router'
 
   interface LogFilter {
     browserId?: string
     serverId?: string
     serverIds?: string[]
+    channel?: string
   }
 
   let { filter = {}, historyServerIds = [] }: { filter?: LogFilter; historyServerIds?: string[] } = $props()
+
+  function clearChannel() {
+    const r = currentRoute()
+    navigate({ ...r, channel: undefined })
+  }
 
   // Load history from NDJSON files for each server in scope
   let _historyLoaded: string = $state('')
@@ -52,8 +59,12 @@
       result = result.filter(e => e.serverId !== undefined && ids.has(e.serverId))
     }
 
-    // Exclude 'errors'/'error' channel — duplicates console errors
-    result = result.filter(e => e.channel !== 'errors' && e.channel !== 'error')
+    if (filter.channel) {
+      result = result.filter(e => e.channel === filter.channel)
+    } else {
+      // Exclude 'errors'/'error' channel — duplicates console errors
+      result = result.filter(e => e.channel !== 'errors' && e.channel !== 'error')
+    }
 
     // Level threshold filter
     if (minLevel !== 'debug') {
@@ -196,6 +207,18 @@
         <option value={lv.id}>{lv.label}+</option>
       {/each}
     </select>
+
+    {#if filter.channel}
+      <span class="inline-flex items-center gap-1 text-[10px] bg-accent/20 text-accent-foreground border border-accent/40 rounded px-1.5 py-0.5">
+        channel: <span class="font-mono">{filter.channel}</span>
+        <button
+          onclick={clearChannel}
+          class="text-muted-foreground hover:text-foreground ml-0.5"
+          title="Clear channel filter"
+          aria-label="Clear channel filter"
+        >×</button>
+      </span>
+    {/if}
 
     <div class="flex-1"></div>
 

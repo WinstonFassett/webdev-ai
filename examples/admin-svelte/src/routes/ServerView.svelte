@@ -23,7 +23,7 @@
   <ViewTabs {route} />
 
   {#if route.tab === 'logs' && server}
-    <LogStream filter={{ serverId: server.id }} historyServerIds={[server.id]} />
+    <LogStream filter={{ serverId: server.id, channel: route.channel }} historyServerIds={[server.id]} />
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !server}
@@ -41,8 +41,6 @@
       <div class="text-xs text-muted-foreground/50 font-mono">{server.directory ?? ''}</div>
     </div>
 
-    <LogSummary {route} filter={{ serverId: server.id }} historyServerIds={[server.id]} />
-
     <!-- Endpoints -->
     <div class="border border-border rounded-lg bg-card">
       <div class="px-4 py-2 text-[10px] text-muted-foreground/60 uppercase tracking-wide">
@@ -57,14 +55,25 @@
       {/each}
     </div>
 
+    <LogSummary {route} filter={{ serverId: server.id }} historyServerIds={[server.id]} />
+
     <!-- Log paths -->
     {#if Object.keys(server.logPaths ?? {}).length > 0}
       <div class="border border-border rounded-lg bg-card">
         <div class="px-4 py-2 text-[10px] text-muted-foreground/60 uppercase tracking-wide">Log Channels</div>
         {#each Object.entries(server.logPaths ?? {}) as [channel, path]}
-          <div class="border-t border-border px-4 py-2 flex items-center justify-between text-xs">
-            <span class="text-foreground">{channel}</span>
-            <span class="text-muted-foreground/40 font-mono text-[10px] truncate max-w-96">{path}</span>
+          <div class="border-t border-border px-4 py-2 flex items-center justify-between gap-4 text-xs">
+            <button
+              type="button"
+              onclick={() => navigate({ ...route, tab: 'logs', channel })}
+              class="text-foreground hover:text-accent-foreground hover:underline cursor-pointer text-left"
+              title="View logs for this channel"
+            >{channel}</button>
+            <a
+              href="vscode://file{path}"
+              class="text-muted-foreground/40 hover:text-foreground font-mono text-[10px] truncate max-w-96 transition-colors"
+              title="Open in editor"
+            >{path}</a>
           </div>
         {/each}
       </div>
