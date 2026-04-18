@@ -58,9 +58,9 @@
   <header class="h-8 flex items-center justify-between px-3 border-b border-border shrink-0">
     <nav class="flex items-center gap-1 text-xs min-w-0">
       {#if route.view === 'gateway'}
-        <span class="text-foreground font-medium">Dashboard</span>
+        <span class="text-foreground font-medium">web-dev-mcp</span>
       {:else}
-        <a href={routeToHash({ ...route, view: 'gateway', projectId: undefined, type: undefined, browserId: undefined })} class="text-muted-foreground hover:text-foreground transition-colors">Dashboard</a>
+        <a href={routeToHash({ ...route, view: 'gateway', projectId: undefined, type: undefined, browserId: undefined })} class="text-muted-foreground hover:text-foreground transition-colors">web-dev-mcp</a>
       {/if}
 
       {#if project}
