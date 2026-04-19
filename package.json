@@ -6,6 +6,7 @@
   "private": true,
   "workspaces": [
     "packages/*",
+    "apps/*",
     "examples/*"
   ],
   "scripts": {
@@ -15,7 +16,7 @@
     "clean": "npm run clean --workspaces && rm -rf node_modules",
     "prepublish:check": "npm run build && npm pack --dry-run -w @winstonfassett/web-dev-mcp-gateway && npm pack --dry-run -w @winstonfassett/web-dev-mcp-vite && npm pack --dry-run -w @winstonfassett/web-dev-mcp-astro && npm pack --dry-run -w @winstonfassett/web-dev-mcp-nextjs",
     "publish:all": "npm publish -w @winstonfassett/web-dev-mcp-gateway && npm publish -w @winstonfassett/web-dev-mcp-vite && npm publish -w @winstonfassett/web-dev-mcp-astro && npm publish -w @winstonfassett/web-dev-mcp-nextjs",
-    "gateway:build": "npm run build && npm --prefix examples/admin-svelte run build",
+    "gateway:build": "npm run build && npm --prefix apps/admin-svelte run build",
     "gateway:status": "lsof -iTCP:3333 -sTCP:LISTEN -P -n 2>/dev/null || echo 'gateway not running on 3333'",
     "gateway:stop": "kill $(lsof -tiTCP:3333 -sTCP:LISTEN) 2>/dev/null; sleep 1; echo 'stopped'",
     "gateway:start": "nohup node packages/gateway/dist/cli.js > /tmp/web-dev-mcp-gateway.log 2>&1 & disown; sleep 1; echo 'started (logs: /tmp/web-dev-mcp-gateway.log)'",

@@ -29,11 +29,11 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 - `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/web-dev-mcp-nextjs`).
 - `packages/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
 - `packages/proxy/` — Dynamic proxy plugin (not published yet).
+- `apps/admin-svelte/` — Admin UI (builds into gateway dist)
 - `examples/vite-app/` — Vite test app
 - `examples/nextjs-turbopack/` — Next.js turbopack test app
 - `examples/nextjs-webpack/` — Next.js webpack test app
 - `examples/storybook-app/` — Storybook test app
-- `examples/admin-svelte/` — Admin UI (builds into gateway dist)
 
 ## Non-obvious things
 

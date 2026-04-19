@@ -194,7 +194,7 @@ export function handleAdmin(
     if (serveStatic(res, indexPath)) return true
     // Fallback: admin not built yet
     res.writeHead(200, { 'Content-Type': 'text/html' })
-    res.end('<html><body style="font-family:system-ui;background:#0a0a0a;color:#888;padding:2rem"><h1>Admin not built</h1><p>Run <code>npm run build</code> in examples/admin-svelte/ first.</p></body></html>')
+    res.end('<html><body style="font-family:system-ui;background:#0a0a0a;color:#888;padding:2rem"><h1>Admin not built</h1><p>Run <code>npm run build</code> in apps/admin-svelte/ first.</p></body></html>')
     return true
   }
 
