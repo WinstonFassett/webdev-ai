@@ -75,15 +75,30 @@ class AdminAPI extends RpcTarget {
   }
 
   /**
-   * Truncate log files server-side. Persists across reload.
-   * - No serverId: clears session files + all registered servers' files.
-   * - serverId: clears just that server's files.
+   * Clear logs server-side. Persists across reload.
+   * - browserId: sets a per-browser checkpoint; other browsers on the same
+   *   server keep their logs (shared NDJSON file can't be truncated for one).
+   * - serverId: truncates that server's NDJSON files.
+   * - serverIds: truncates each listed server's files.
+   * - none: truncates session files + all registered servers' files.
    */
-  clearLogs(opts?: { serverId?: string; channels?: string[] }) {
+  clearLogs(opts?: { serverId?: string; serverIds?: string[]; browserId?: string; channels?: string[] }) {
+    if (opts?.browserId) {
+      const ts = Date.now()
+      deps.session.browserCheckpoints[opts.browserId] = ts
+      return { success: true, scope: 'browser', browserId: opts.browserId, ts }
+    }
+
     const channels = opts?.channels
     const truncated: Record<string, Record<string, number>> = {}
 
-    if (opts?.serverId) {
+    if (opts?.serverIds?.length) {
+      for (const id of opts.serverIds) {
+        const server = deps.registry.get(id)
+        if (!server) continue
+        truncated[id] = truncateChannelFiles(server.logPaths, channels)
+      }
+    } else if (opts?.serverId) {
       const server = deps.registry.get(opts.serverId)
       if (!server) throw new Error(`Server ${opts.serverId} not found`)
       truncated[opts.serverId] = truncateChannelFiles(server.logPaths, channels)
@@ -92,6 +107,8 @@ class AdminAPI extends RpcTarget {
       for (const server of deps.registry.getAll()) {
         truncated[server.id] = truncateChannelFiles(server.logPaths, channels)
       }
+      // Whole-gateway clear supersedes any per-browser checkpoints
+      deps.session.browserCheckpoints = {}
     }
 
     deps.session.checkpointTs = Date.now()

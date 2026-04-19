@@ -99,15 +99,34 @@ export function handleAdmin(
     return true
   }
 
-  // POST /__admin/logs/clear — truncate NDJSON files server-side
+  // POST /__admin/logs/clear — clear logs server-side (truncate or checkpoint)
   if (url === '/__admin/logs/clear' && req.method === 'POST') {
     readBody(req).then((body) => {
       try {
         const data = body ? JSON.parse(body) : {}
-        const { serverId, channels } = data as { serverId?: string; channels?: string[] }
+        const { serverId, serverIds, browserId, channels } = data as {
+          serverId?: string
+          serverIds?: string[]
+          browserId?: string
+          channels?: string[]
+        }
+
+        if (browserId) {
+          const ts = Date.now()
+          opts.session.browserCheckpoints[browserId] = ts
+          jsonResponse(res, 200, { success: true, scope: 'browser', browserId, ts })
+          return
+        }
+
         const truncated: Record<string, Record<string, number>> = {}
 
-        if (serverId) {
+        if (serverIds && serverIds.length > 0) {
+          for (const id of serverIds) {
+            const server = opts.registry.get(id)
+            if (!server) continue
+            truncated[id] = truncateChannelFiles(server.logPaths, channels)
+          }
+        } else if (serverId) {
           const server = opts.registry.get(serverId)
           if (!server) {
             jsonResponse(res, 404, { error: `Server ${serverId} not found` })
@@ -119,6 +138,7 @@ export function handleAdmin(
           for (const server of opts.registry.getAll()) {
             truncated[server.id] = truncateChannelFiles(server.logPaths, channels)
           }
+          opts.session.browserCheckpoints = {}
         }
 
         opts.session.checkpointTs = Date.now()
