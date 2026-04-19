@@ -8,6 +8,20 @@ npm run build          # all 3 packages (gateway, adapter-vite, adapter-nextjs)
 
 After changing source, rebuild before testing examples.
 
+## Restarting the running gateway
+
+The user's normal workflow leaves one gateway running on port 3333 with live work attached (dev adapters, browser tabs, ticket UI). Changes to gateway or admin source only take effect after rebuild **and** restart of that running process — Node doesn't hot-reload.
+
+```bash
+npm run gateway:restart    # build (gateway + admin-svelte) + stop :3333 + start detached
+npm run gateway:status     # is it up? which PID?
+npm run gateway:stop       # kill :3333 owner
+npm run gateway:start      # nohup launch, logs → /tmp/web-dev-mcp-gateway.log
+npm run gateway:logs       # tail -f the log file
+```
+
+Agents: do this yourself — don't tell the user to "restart the gateway." After restart, tell them to hard-reload any open admin tab (the minified JS bundle is cached in the browser).
+
 ## Monorepo layout
 
 - `packages/gateway/` — Core gateway (`@winstonfassett/web-dev-mcp-gateway`). Has its own [CLAUDE.md](packages/gateway/CLAUDE.md).
