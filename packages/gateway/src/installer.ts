@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { intro, outro, log, note, spinner } from '@clack/prompts'
+import { intro, outro, log, note, spinner, select, isCancel, cancel } from '@clack/prompts'
 import { detect } from 'package-manager-detector'
 import { execa } from 'execa'
 import pc from 'picocolors'
@@ -38,7 +38,7 @@ type WireResult =
 export async function runInit(opts: InitOptions): Promise<void> {
   intro(pc.cyan('web-dev-mcp init'))
 
-  const frameworks = detectFrameworks(opts.cwd)
+  const frameworks = await detectFrameworks(opts.cwd)
   if (frameworks.length === 0) {
     log.error('No supported framework detected. Looked for: vite.config.*, .storybook/main.*, astro.config.*, next.config.*')
     outro(pc.red('Aborted.'))
@@ -68,7 +68,14 @@ export async function runInit(opts: InitOptions): Promise<void> {
 
   if (!opts.skipMcp) {
     const mcpUrl = `http://localhost:${opts.port}/__mcp/sse`
-    const registered = autoRegister(opts.cwd, mcpUrl)
+    const parseFailures: Array<{ path: string; reason: string }> = []
+    const registered = autoRegister(opts.cwd, mcpUrl, {
+      onParseError: (path, err) => parseFailures.push({ path, reason: err.message }),
+    })
+    if (parseFailures.length > 0) {
+      log.warn('Could not parse existing MCP config files (skipped — possibly JSONC with comments?):')
+      for (const f of parseFailures) log.warn(`  ${pc.dim(f.path)}: ${f.reason}`)
+    }
     if (registered.length === 0) {
       log.warn('No MCP client configs were written.')
     } else {
@@ -81,14 +88,14 @@ export async function runInit(opts: InitOptions): Promise<void> {
   outro(pc.green('Done. Run your dev server.'))
 }
 
-function detectFrameworks(cwd: string): Framework[] {
+async function detectFrameworks(cwd: string): Promise<Framework[]> {
   const found: Framework[] = []
 
   // Next.js — exclusive with vite (next has its own bundler). Detect first so we
   // don't double-wire if next.config also has a vite shim somehow.
   const nextPath = firstExisting(cwd, ['next.config.ts', 'next.config.js', 'next.config.mjs', 'next.config.mts'])
   if (nextPath) {
-    const bundler = detectNextBundler(cwd)
+    const bundler = await detectNextBundler(cwd)
     const layoutPath = firstExisting(cwd, ['app/layout.tsx', 'app/layout.jsx', 'src/app/layout.tsx', 'src/app/layout.jsx'])
     found.push({ name: 'next', configPath: nextPath, bundler, layoutPath })
   } else {
@@ -111,14 +118,15 @@ function detectFrameworks(cwd: string): Framework[] {
 
 /**
  * Detect Next.js bundler. Cascade per Sentry-wizard pattern + Next 16 default flip:
- *   1. dev script contains `--webpack` → webpack
- *   2. dev script contains `--turbopack` or `--turbo` → turbopack
- *   3. installed next version >= 16 → turbopack (default)
- *   4. installed next version < 16 → webpack (default)
- *   5. unknown → assume turbopack (Next 16 is current; safer to inject the init
- *      component than to silently break)
+ *   1. only `--webpack` in any script → webpack
+ *   2. only `--turbopack`/`--turbo` in any script → turbopack
+ *   3. BOTH flags in different scripts → ask the user (default to whatever the
+ *      bare `dev` script uses)
+ *   4. neither flag, installed next version >= 16 → turbopack (default)
+ *   5. neither flag, installed next version < 16 → webpack (default)
+ *   6. unknown → assume turbopack
  */
-function detectNextBundler(cwd: string): 'webpack' | 'turbopack' {
+async function detectNextBundler(cwd: string): Promise<'webpack' | 'turbopack'> {
   const pkgJsonPath = join(cwd, 'package.json')
   let pkgJson: any = null
   if (existsSync(pkgJsonPath)) {
@@ -127,8 +135,32 @@ function detectNextBundler(cwd: string): 'webpack' | 'turbopack' {
 
   const scripts: Record<string, string> = pkgJson?.scripts ?? {}
   const allScriptText = Object.values(scripts).join(' ')
-  if (allScriptText.includes('--webpack')) return 'webpack'
-  if (allScriptText.includes('--turbopack') || allScriptText.includes('--turbo')) return 'turbopack'
+  const hasWebpack = allScriptText.includes('--webpack')
+  const hasTurbopack = allScriptText.includes('--turbopack') || allScriptText.includes('--turbo')
+
+  if (hasWebpack && hasTurbopack) {
+    const devScript = scripts.dev ?? ''
+    const devPrefers: 'webpack' | 'turbopack' =
+      devScript.includes('--webpack') ? 'webpack' :
+      devScript.includes('--turbopack') || devScript.includes('--turbo') ? 'turbopack' :
+      'turbopack'
+    const choice = await select({
+      message: 'Both --webpack and --turbopack found in your scripts. Which to wire?',
+      options: [
+        { value: 'turbopack', label: 'turbopack — wraps next.config + adds <WebDevMcpInit /> to layout' },
+        { value: 'webpack', label: 'webpack — wraps next.config only (entry injection is automatic)' },
+      ],
+      initialValue: devPrefers,
+    })
+    if (isCancel(choice)) {
+      cancel('Aborted.')
+      process.exit(0)
+    }
+    return choice as 'webpack' | 'turbopack'
+  }
+
+  if (hasWebpack) return 'webpack'
+  if (hasTurbopack) return 'turbopack'
 
   const nextVersion = pkgJson?.dependencies?.next ?? pkgJson?.devDependencies?.next
   if (typeof nextVersion === 'string') {
@@ -157,7 +189,9 @@ function wireFramework(fw: Framework): WireResult {
 
 function wireVite(configPath: string): WireResult {
   const source = readFileSync(configPath, 'utf8')
-  if (source.includes(VITE_PLUGIN_PKG)) return { status: 'already' }
+  if (hasRealImport(source, VITE_PLUGIN_PKG) && hasCallExpression(source, VITE_PLUGIN_NAME)) {
+    return { status: 'already' }
+  }
 
   const withPlugin = insertIntoArrayField(source, 'plugins', `${VITE_PLUGIN_NAME}()`)
   if (withPlugin == null) {
@@ -165,7 +199,9 @@ function wireVite(configPath: string): WireResult {
   }
 
   const importLine = `import { ${VITE_PLUGIN_NAME} } from '${VITE_PLUGIN_PKG}'`
-  const withImport = insertImportAfterLastImport(withPlugin, importLine)
+  const withImport = hasRealImport(withPlugin, VITE_PLUGIN_PKG)
+    ? withPlugin
+    : insertImportAfterLastImport(withPlugin, importLine)
 
   writeFileSync(configPath, withImport, 'utf8')
   return { status: 'edited' }
@@ -185,7 +221,9 @@ function wireStorybook(configPath: string): WireResult {
 
 function wireAstro(configPath: string): WireResult {
   const source = readFileSync(configPath, 'utf8')
-  if (source.includes(ASTRO_PKG)) return { status: 'already' }
+  if (hasRealImport(source, ASTRO_PKG) && hasCallExpression(source, ASTRO_NAME)) {
+    return { status: 'already' }
+  }
 
   const withIntegration = insertIntoArrayField(source, 'integrations', `${ASTRO_NAME}()`)
   if (withIntegration == null) {
@@ -193,7 +231,9 @@ function wireAstro(configPath: string): WireResult {
   }
 
   const importLine = `import ${ASTRO_NAME} from '${ASTRO_PKG}'`
-  const withImport = insertImportAfterLastImport(withIntegration, importLine)
+  const withImport = hasRealImport(withIntegration, ASTRO_PKG)
+    ? withIntegration
+    : insertImportAfterLastImport(withIntegration, importLine)
 
   writeFileSync(configPath, withImport, 'utf8')
   return { status: 'edited' }
@@ -223,7 +263,9 @@ function wireNext(fw: Extract<Framework, { name: 'next' }>): WireResult {
 
 function wrapNextConfig(configPath: string): WireResult {
   const source = readFileSync(configPath, 'utf8')
-  if (source.includes(NEXTJS_PKG)) return { status: 'already' }
+  if (hasRealImport(source, NEXTJS_PKG) && hasCallExpression(source, NEXTJS_WRAP)) {
+    return { status: 'already' }
+  }
 
   // Match `export default <expr>;?` (single line, expr is identifier or simple call).
   // Use [ \t]* (not \s*) to avoid consuming the trailing newline.
@@ -250,7 +292,9 @@ function wrapNextConfig(configPath: string): WireResult {
   // Quote style: match what the file uses
   const quote = source.includes(`from "`) ? '"' : `'`
   const importLine = `import { ${NEXTJS_WRAP} } from ${quote}${NEXTJS_PKG}${quote}`
-  updated = insertImportAfterLastImport(updated, importLine)
+  if (!hasRealImport(updated, NEXTJS_PKG)) {
+    updated = insertImportAfterLastImport(updated, importLine)
+  }
 
   writeFileSync(configPath, updated, 'utf8')
   return { status: 'edited' }
@@ -258,7 +302,9 @@ function wrapNextConfig(configPath: string): WireResult {
 
 function injectInitIntoLayout(layoutPath: string): WireResult {
   const source = readFileSync(layoutPath, 'utf8')
-  if (source.includes(NEXTJS_INIT_PATH)) return { status: 'already' }
+  if (hasRealImport(source, NEXTJS_INIT_PATH) && /<WebDevMcpInit\b/.test(source)) {
+    return { status: 'already' }
+  }
 
   // Find <body ...> opening tag (not </body>, not <body/>)
   const bodyOpenRe = /<body\b[^>]*>/
@@ -279,10 +325,34 @@ function injectInitIntoLayout(layoutPath: string): WireResult {
   // Quote style match for the import
   const quote = source.includes(`from "`) ? '"' : `'`
   const importLine = `import { ${NEXTJS_INIT_COMPONENT} } from ${quote}${NEXTJS_INIT_PATH}${quote}`
-  updated = insertImportAfterLastImport(updated, importLine)
+  if (!hasRealImport(updated, NEXTJS_INIT_PATH)) {
+    updated = insertImportAfterLastImport(updated, importLine)
+  }
 
   writeFileSync(layoutPath, updated, 'utf8')
   return { status: 'edited' }
+}
+
+/**
+ * Check if a real `import ... from '<pkg>'` line is present (not a commented-out one).
+ * Anchors to start-of-line + optional whitespace + literal `import` keyword, so `// import ...`
+ * does not match.
+ */
+function hasRealImport(source: string, pkg: string): boolean {
+  const escaped = pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`^\\s*import\\b[^\\n;]*['"\`]${escaped}['"\`]`, 'm')
+  return re.test(source)
+}
+
+/**
+ * Check if a function call expression is present in the source.
+ * Used as the second half of the "already wired" marker — paired with hasRealImport.
+ * Comment-commented-out cases (e.g. `// webDevMcp()`) will incorrectly match;
+ * acceptable since hasRealImport will fail in that case.
+ */
+function hasCallExpression(source: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`\\b${escaped}\\s*\\(`).test(source)
 }
 
 /**

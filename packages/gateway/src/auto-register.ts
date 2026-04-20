@@ -23,15 +23,24 @@ const GLOBAL_AGENTS: Record<string, AgentConfig> = {
   windsurf: { relPath: '.windsurf/mcp.json',    serversKey: 'mcpServers' },
 }
 
-function upsertMcpServer(filePath: string, serversKey: string, mcpUrl: string): boolean {
+/** Optional callbacks for surfacing non-fatal events during auto-register */
+export interface AutoRegisterReporter {
+  onParseError?: (filePath: string, error: Error) => void
+}
+
+function upsertMcpServer(filePath: string, serversKey: string, mcpUrl: string, reporter?: AutoRegisterReporter): boolean {
   const dir = dirname(filePath)
 
   let config: Record<string, unknown> = {}
   if (existsSync(filePath)) {
     try {
       config = JSON.parse(readFileSync(filePath, 'utf-8'))
-    } catch {
-      console.error(`  Skipped ${filePath}: could not parse existing JSON`)
+    } catch (err) {
+      if (reporter?.onParseError) {
+        reporter.onParseError(filePath, err as Error)
+      } else {
+        console.error(`  Skipped ${filePath}: could not parse existing JSON`)
+      }
       return false
     }
   }
@@ -46,12 +55,12 @@ function upsertMcpServer(filePath: string, serversKey: string, mcpUrl: string): 
 }
 
 /** Register MCP in project-level config files */
-export function autoRegister(cwd: string, mcpUrl: string): string[] {
+export function autoRegister(cwd: string, mcpUrl: string, reporter?: AutoRegisterReporter): string[] {
   const registered: string[] = []
 
   for (const [_agent, { relPath, serversKey }] of Object.entries(PROJECT_AGENTS)) {
     const filePath = join(cwd, relPath)
-    if (upsertMcpServer(filePath, serversKey, mcpUrl)) {
+    if (upsertMcpServer(filePath, serversKey, mcpUrl, reporter)) {
       registered.push(relPath)
     }
   }
@@ -63,7 +72,7 @@ export function autoRegister(cwd: string, mcpUrl: string): string[] {
 }
 
 /** Register MCP in global/user-level config files */
-export function autoRegisterGlobal(mcpUrl: string): string[] {
+export function autoRegisterGlobal(mcpUrl: string, reporter?: AutoRegisterReporter): string[] {
   const home = homedir()
   const registered: string[] = []
 
@@ -71,7 +80,7 @@ export function autoRegisterGlobal(mcpUrl: string): string[] {
     const filePath = join(home, relPath)
     // Only write to global configs that already exist (don't create dirs for tools the user doesn't have)
     if (!existsSync(dirname(filePath))) continue
-    if (upsertMcpServer(filePath, serversKey, mcpUrl)) {
+    if (upsertMcpServer(filePath, serversKey, mcpUrl, reporter)) {
       registered.push(`~/${relPath}`)
     }
   }
