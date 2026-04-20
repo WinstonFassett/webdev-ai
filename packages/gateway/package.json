@@ -54,10 +54,16 @@
     "access": "public"
   },
   "dependencies": {
+    "@clack/prompts": "^1.2.0",
     "@modelcontextprotocol/sdk": "^1.27.0",
     "@xmorse/playwright-core": "^1.59.10",
     "capnweb": "^0.6.1",
+    "commander": "^13.1.0",
+    "execa": "^9.6.1",
+    "magicast": "^0.5.2",
     "modern-screenshot": "^4.6.8",
+    "package-manager-detector": "^1.6.0",
+    "picocolors": "^1.1.1",
     "ws": "^8.20.0",
     "zod": "^4.0.0"
   },
