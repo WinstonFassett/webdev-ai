@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { intro, outro, log, note, spinner, select, isCancel, cancel } from '@clack/prompts'
+import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { intro, outro, log, note, spinner, select, multiselect, isCancel, cancel } from '@clack/prompts'
 import { detect } from 'package-manager-detector'
 import { execa } from 'execa'
 import pc from 'picocolors'
@@ -22,13 +22,15 @@ export type InitOptions = {
   port: number
   skipInstall?: boolean
   skipMcp?: boolean
+  /** Non-interactive: auto-accept all prompts (CI / scripting). */
+  yes?: boolean
 }
 
 type Framework =
-  | { name: 'vite'; configPath: string }
-  | { name: 'storybook'; configPath: string }
-  | { name: 'astro'; configPath: string }
-  | { name: 'next'; configPath: string; bundler: 'webpack' | 'turbopack'; layoutPath: string | null }
+  | { name: 'vite'; projectDir: string; configPath: string }
+  | { name: 'storybook'; projectDir: string; configPath: string }
+  | { name: 'astro'; projectDir: string; configPath: string }
+  | { name: 'next'; projectDir: string; configPath: string; bundler: 'webpack' | 'turbopack'; layoutPath: string | null }
 
 type WireResult =
   | { status: 'edited' }
@@ -38,7 +40,7 @@ type WireResult =
 export async function runInit(opts: InitOptions): Promise<void> {
   intro(pc.cyan('web-dev-mcp init'))
 
-  const frameworks = await detectFrameworks(opts.cwd)
+  const frameworks = await detectFrameworks(opts.cwd, { yes: opts.yes })
   if (frameworks.length === 0) {
     log.error('No supported framework detected. Looked for: vite.config.*, .storybook/main.*, astro.config.*, next.config.*')
     outro(pc.red('Aborted.'))
@@ -88,32 +90,99 @@ export async function runInit(opts: InitOptions): Promise<void> {
   outro(pc.green('Done. Run your dev server.'))
 }
 
-async function detectFrameworks(cwd: string): Promise<Framework[]> {
+async function detectFrameworks(cwd: string, ctx: { yes?: boolean } = {}): Promise<Framework[]> {
+  const direct = await detectFrameworksIn(cwd)
+  if (direct.length > 0) return direct
+
+  const subprojects = await scanMonorepoSubprojects(cwd)
+  if (subprojects.length === 0) return []
+
+  if (subprojects.length === 1) {
+    const sp = subprojects[0]
+    const rel = relPath(cwd, sp.dir)
+    if (ctx.yes) {
+      log.info(`Auto-accepted: wire ${sp.frameworks.map((f) => f.name).join(', ')} in ${rel}`)
+      return sp.frameworks
+    }
+    const confirm = await select({
+      message: `Found framework in ${rel}. Wire it?`,
+      options: [
+        { value: 'yes', label: `Yes — wire ${sp.frameworks.map((f) => f.name).join(', ')} in ${rel}` },
+        { value: 'no', label: 'No, abort' },
+      ],
+      initialValue: 'yes',
+    })
+    if (isCancel(confirm) || confirm === 'no') {
+      cancel('Aborted.')
+      process.exit(0)
+    }
+    return sp.frameworks
+  }
+
+  if (ctx.yes) {
+    log.info(`Auto-accepted: wiring ${subprojects.length} sub-projects (${subprojects.map((sp) => relPath(cwd, sp.dir)).join(', ')})`)
+    return subprojects.flatMap((sp) => sp.frameworks)
+  }
+
+  const selectedDirs = await multiselect({
+    message: 'Multiple sub-projects with framework configs found. Which to wire?',
+    options: subprojects.map((sp) => ({
+      value: sp.dir,
+      label: `${relPath(cwd, sp.dir)} (${sp.frameworks.map((f) => f.name).join(', ')})`,
+    })),
+    initialValues: subprojects.map((sp) => sp.dir),
+    required: true,
+  })
+  if (isCancel(selectedDirs)) {
+    cancel('Aborted.')
+    process.exit(0)
+  }
+  return subprojects
+    .filter((sp) => (selectedDirs as string[]).includes(sp.dir))
+    .flatMap((sp) => sp.frameworks)
+}
+
+async function detectFrameworksIn(dir: string): Promise<Framework[]> {
   const found: Framework[] = []
 
-  // Next.js — exclusive with vite (next has its own bundler). Detect first so we
-  // don't double-wire if next.config also has a vite shim somehow.
-  const nextPath = firstExisting(cwd, ['next.config.ts', 'next.config.js', 'next.config.mjs', 'next.config.mts'])
+  const nextPath = firstExisting(dir, ['next.config.ts', 'next.config.js', 'next.config.mjs', 'next.config.mts'])
   if (nextPath) {
-    const bundler = await detectNextBundler(cwd)
-    const layoutPath = firstExisting(cwd, ['app/layout.tsx', 'app/layout.jsx', 'src/app/layout.tsx', 'src/app/layout.jsx'])
-    found.push({ name: 'next', configPath: nextPath, bundler, layoutPath })
+    const bundler = await detectNextBundler(dir)
+    const layoutPath = firstExisting(dir, ['app/layout.tsx', 'app/layout.jsx', 'src/app/layout.tsx', 'src/app/layout.jsx'])
+    found.push({ name: 'next', projectDir: dir, configPath: nextPath, bundler, layoutPath })
   } else {
-    // Astro takes precedence over vite — astro uses vite under the hood but
-    // should only get the astro integration.
-    const astroPath = firstExisting(cwd, ['astro.config.mjs', 'astro.config.js', 'astro.config.ts', 'astro.config.mts'])
+    const astroPath = firstExisting(dir, ['astro.config.mjs', 'astro.config.js', 'astro.config.ts', 'astro.config.mts'])
     if (astroPath) {
-      found.push({ name: 'astro', configPath: astroPath })
+      found.push({ name: 'astro', projectDir: dir, configPath: astroPath })
     } else {
-      const vitePath = firstExisting(cwd, ['vite.config.ts', 'vite.config.js', 'vite.config.mts', 'vite.config.mjs'])
-      if (vitePath) found.push({ name: 'vite', configPath: vitePath })
+      const vitePath = firstExisting(dir, ['vite.config.ts', 'vite.config.js', 'vite.config.mts', 'vite.config.mjs'])
+      if (vitePath) found.push({ name: 'vite', projectDir: dir, configPath: vitePath })
     }
   }
 
-  const sbPath = firstExisting(cwd, ['.storybook/main.ts', '.storybook/main.js', '.storybook/main.mts', '.storybook/main.mjs'])
-  if (sbPath) found.push({ name: 'storybook', configPath: sbPath })
+  const sbPath = firstExisting(dir, ['.storybook/main.ts', '.storybook/main.js', '.storybook/main.mts', '.storybook/main.mjs'])
+  if (sbPath) found.push({ name: 'storybook', projectDir: dir, configPath: sbPath })
 
   return found
+}
+
+/** Walk apps/* packages/* services/* examples/* for sub-projects with framework configs. */
+async function scanMonorepoSubprojects(cwd: string): Promise<Array<{ dir: string; frameworks: Framework[] }>> {
+  const out: Array<{ dir: string; frameworks: Framework[] }> = []
+  const candidateRoots = ['apps', 'packages', 'services', 'examples']
+  for (const root of candidateRoots) {
+    const rootPath = join(cwd, root)
+    if (!existsSync(rootPath)) continue
+    let entries: string[] = []
+    try { entries = readdirSync(rootPath) } catch { continue }
+    for (const entry of entries) {
+      const subdir = join(rootPath, entry)
+      try { if (!statSync(subdir).isDirectory()) continue } catch { continue }
+      const fws = await detectFrameworksIn(subdir)
+      if (fws.length > 0) out.push({ dir: subdir, frameworks: fws })
+    }
+  }
+  return out
 }
 
 /**
@@ -521,28 +590,35 @@ function nextLayoutManualSteps(layoutPath: string): string {
 }
 
 async function installAdapters(cwd: string, frameworks: Framework[]): Promise<void> {
-  const pkgs = new Set<string>([GATEWAY_PKG])
+  // Group adapter package sets by project dir so deps land in the right
+  // package.json (matters for monorepos where init at root wires sub-projects)
+  const byDir = new Map<string, Set<string>>()
   for (const fw of frameworks) {
-    if (fw.name === 'vite' || fw.name === 'storybook') pkgs.add(VITE_PLUGIN_PKG)
-    else if (fw.name === 'astro') pkgs.add(ASTRO_PKG)
-    else if (fw.name === 'next') pkgs.add(NEXTJS_PKG)
+    const set = byDir.get(fw.projectDir) ?? new Set<string>([GATEWAY_PKG])
+    if (fw.name === 'vite' || fw.name === 'storybook') set.add(VITE_PLUGIN_PKG)
+    else if (fw.name === 'astro') set.add(ASTRO_PKG)
+    else if (fw.name === 'next') set.add(NEXTJS_PKG)
+    byDir.set(fw.projectDir, set)
   }
-  const pkgList = [...pkgs]
 
-  const detected = await detect({ cwd })
-  const agent = detected?.agent ?? 'npm'
-  const verb = agent === 'npm' ? 'install' : 'add'
-  const args = [verb, '-D', ...pkgList]
+  for (const [projectDir, pkgSet] of byDir) {
+    const pkgList = [...pkgSet]
+    const detected = await detect({ cwd: projectDir })
+    const agent = detected?.agent ?? 'npm'
+    const verb = agent === 'npm' ? 'install' : 'add'
+    const args = [verb, '-D', ...pkgList]
 
-  const s = spinner()
-  s.start(`Installing ${pkgList.join(' + ')} via ${agent}`)
-  try {
-    await execa(agent, args, { cwd })
-    s.stop(`Installed via ${agent}`)
-  } catch (err) {
-    s.stop(pc.red(`Install failed`))
-    log.error((err as Error).message)
-    throw err
+    const rel = relPath(cwd, projectDir) || '.'
+    const s = spinner()
+    s.start(`Installing ${pkgList.join(' + ')} in ${rel} via ${agent}`)
+    try {
+      await execa(agent, args, { cwd: projectDir })
+      s.stop(`Installed in ${rel} via ${agent}`)
+    } catch (err) {
+      s.stop(pc.red(`Install failed in ${rel}`))
+      log.error((err as Error).message)
+      throw err
+    }
   }
 }
 

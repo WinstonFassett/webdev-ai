@@ -56,12 +56,14 @@ program
   .option('-p, --port <port>', 'Gateway port to register with MCP clients (default: 3333)', (v) => parseInt(v, 10), 3333)
   .option('--skip-install', 'Skip npm install of adapter + gateway packages')
   .option('--skip-mcp', 'Skip writing MCP client config files')
+  .option('-y, --yes', 'Auto-accept all prompts (non-interactive / CI)')
   .action(async (opts) => {
     await runInit({
       cwd: opts.cwd,
       port: opts.port,
       skipInstall: opts.skipInstall,
       skipMcp: opts.skipMcp,
+      yes: opts.yes,
     })
   })
 
