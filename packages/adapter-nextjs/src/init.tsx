@@ -14,19 +14,21 @@ import { useEffect } from 'react'
 
 export function WebDevMcpInit() {
   useEffect(() => {
+    // process.env.NODE_ENV is inlined by Next.js at build time. In prod the
+    // entire useEffect body is dead-code-eliminated.
+    if (process.env.NODE_ENV !== 'development') return
+    if (!process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY) return
     if ((window as any).__WEB_DEV_MCP_LOADED__) return
 
     if (process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER) {
       (window as any).__WEB_DEV_MCP_SERVER__ = process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER
     }
-    if (process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY) {
-      (window as any).__WEB_DEV_MCP_ORIGIN__ = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY
-    }
+    (window as any).__WEB_DEV_MCP_ORIGIN__ = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY
 
     // Meta tag for extension auto-detection
     const meta = document.createElement('meta')
     meta.name = 'web-dev-mcp'
-    meta.content = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY || ''
+    meta.content = process.env.NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY
     if (process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER) {
       meta.setAttribute('data-server-id', process.env.NEXT_PUBLIC_WEB_DEV_MCP_SERVER)
     }
