@@ -31,7 +31,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc && cp src/storybook/*.cjs dist/storybook/"
