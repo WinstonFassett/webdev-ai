@@ -80,12 +80,18 @@ export async function runInit(opts: InitOptions): Promise<void> {
   if (!opts.skipMcp) {
     const mcpUrl = `http://localhost:${opts.port}/__mcp/sse`
     const parseFailures: Array<{ path: string; reason: string }> = []
+    const permissionFailures: Array<{ path: string; reason: string }> = []
     const registered = autoRegister(opts.cwd, mcpUrl, {
       onParseError: (path, err) => parseFailures.push({ path, reason: err.message }),
+      onPermissionError: (path, err) => permissionFailures.push({ path, reason: err.message }),
     })
     if (parseFailures.length > 0) {
-      log.warn('Could not parse existing MCP config files (skipped — possibly JSONC with comments?):')
+      log.warn('Could not parse existing MCP config files (skipped):')
       for (const f of parseFailures) log.warn(`  ${pc.dim(f.path)}: ${f.reason}`)
+    }
+    if (permissionFailures.length > 0) {
+      log.warn('Permission denied writing MCP config files:')
+      for (const f of permissionFailures) log.warn(`  ${pc.dim(f.path)}: ${f.reason}`)
     }
     if (registered.length === 0) {
       log.warn('No MCP client configs were written.')

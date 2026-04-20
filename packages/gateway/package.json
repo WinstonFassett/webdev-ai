@@ -61,6 +61,7 @@
     "capnweb": "^0.6.1",
     "commander": "^13.1.0",
     "execa": "^9.6.1",
+    "jsonc-parser": "^3.3.1",
     "magicast": "^0.5.2",
     "modern-screenshot": "^4.6.8",
     "package-manager-detector": "^1.6.0",
