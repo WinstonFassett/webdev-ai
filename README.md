@@ -19,42 +19,35 @@ graph LR
 
 ## Quick Start
 
-### 1. Start the gateway
+In your project directory:
 
 ```bash
-npx @winstonfassett/web-dev-mcp-gateway
+npx web-dev-mcp init
 ```
 
-### 2. Connect your dev app
+That detects your framework (Vite, Next.js, Astro, Storybook), wires the adapter into your config, installs the dev dependencies, and writes MCP server config for Claude / Cursor / Windsurf / VS Code.
 
-Use a framework adapter (see Install section) or the optional proxy plugin:
+Then start your dev server as usual (`npm run dev`). The adapter auto-starts the gateway. Open the page in your browser, connect your agent — done.
 
-```bash
-npm install web-dev-mcp-proxy  # optional — enables browsing any URL through gateway
-# Then: http://localhost:3333/http://localhost:5173/
-```
-
-### 3. Connect your agent
-
-```bash
-npx @winstonfassett/web-dev-mcp-gateway --auto-register
-```
-
-This writes MCP config into `.mcp.json` (Claude), `.cursor/mcp.json`, `.windsurf/mcp.json`, and `.vscode/mcp.json` in one shot.
-
-Or add manually to `.mcp.json`:
 ```json
+// .mcp.json (written by `init`)
 {
   "mcpServers": {
     "web-dev-mcp": {
-      "type": "sse",
       "url": "http://localhost:3333/__mcp/sse"
     }
   }
 }
 ```
 
-See [getting-started.md](getting-started.md) for the full setup guide.
+If you only need MCP registration (e.g. you've already wired your config manually):
+
+```bash
+npx web-dev-mcp register          # project-level
+npx web-dev-mcp register --global # user-level (~/.claude, ~/.cursor)
+```
+
+See [getting-started.md](getting-started.md) for the full setup guide and manual install.
 
 ## MCP Tools (core)
 
@@ -97,29 +90,39 @@ eval_js: ["browser.click('text=Submit')", "return document.querySelector('.toast
 
 Full tools available at `/__mcp/sse?tools=full` (23 tools including click, fill, screenshot, navigate, query_dom, etc. as individual tools).
 
-## Install
+## Install (manual — `init` does all this for you)
 
-One package: `web-dev-mcp-gateway`. Dev dependency only.
+Pick the adapter for your framework. Each one auto-starts the gateway.
+
+### Vite (incl. TanStack Start, SvelteKit dev mode)
 
 ```bash
-npm install --save-dev @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gateway
 ```
-
-### Vite
 
 ```ts
 // vite.config.ts
 import { webDevMcp } from '@winstonfassett/web-dev-mcp-vite'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    webDevMcp(),
-  ],
+  plugins: [react(), webDevMcp()],
 })
 ```
 
+### Storybook
+
+```ts
+// .storybook/main.ts
+export default {
+  addons: ['@winstonfassett/web-dev-mcp-vite/storybook'],
+}
+```
+
 ### Next.js
+
+```bash
+npm install -D @winstonfassett/web-dev-mcp-nextjs @winstonfassett/web-dev-mcp-gateway
+```
 
 ```js
 // next.config.js
@@ -128,21 +131,28 @@ import { withWebDevMcp } from '@winstonfassett/web-dev-mcp-nextjs'
 export default withWebDevMcp(nextConfig)
 ```
 
-For Turbopack, also add the client component to your layout:
+For Turbopack, also add the client component to your root layout:
 
 ```tsx
 // app/layout.tsx
 import { WebDevMcpInit } from '@winstonfassett/web-dev-mcp-nextjs/init'
-// ... add <WebDevMcpInit /> inside <body>
+// ... add <WebDevMcpInit /> as a child of <body>
 ```
 
-### Then start the gateway
+### Astro
 
 ```bash
-npx @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/web-dev-mcp-astro @winstonfassett/web-dev-mcp-gateway
 ```
 
-Both frameworks need the gateway running. Adapters auto-start it — no separate terminal needed.
+```js
+// astro.config.mjs
+import webDevMcp from '@winstonfassett/web-dev-mcp-astro'
+
+export default defineConfig({
+  integrations: [webDevMcp()],
+})
+```
 
 ## How to connect
 

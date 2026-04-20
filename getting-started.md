@@ -2,6 +2,22 @@
 
 web-dev-mcp gives AI agents live browser access during development — console logs, DOM queries, screenshots, form filling, navigation.
 
+## Easy mode
+
+In your project directory:
+
+```bash
+npx web-dev-mcp init
+```
+
+This detects your framework (Vite / Next.js / Astro / Storybook), wires the adapter, installs the dev dependencies, and registers the MCP server with Claude / Cursor / Windsurf / VS Code in one shot.
+
+Then `npm run dev` and connect your agent. Skip the rest of this doc unless something doesn't work or you want to do it manually.
+
+---
+
+## Manual setup
+
 There are **4 things to set up**, and they're all independent:
 
 | Step | What | Why |
@@ -69,6 +85,22 @@ npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gate
 export default {
   addons: ['@winstonfassett/web-dev-mcp-vite/storybook'],
 }
+```
+
+### Astro
+
+```bash
+npm install -D @winstonfassett/web-dev-mcp-astro @winstonfassett/web-dev-mcp-gateway
+```
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config'
+import webDevMcp from '@winstonfassett/web-dev-mcp-astro'
+
+export default defineConfig({
+  integrations: [webDevMcp()],
+})
 ```
 
 ### Next.js (Webpack)
