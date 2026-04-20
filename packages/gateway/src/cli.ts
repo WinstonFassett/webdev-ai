@@ -3,6 +3,7 @@
 import { Command } from 'commander'
 import { startGateway } from './gateway.js'
 import { runInit } from './installer.js'
+import { runDoctor } from './doctor.js'
 
 const program = new Command()
 
@@ -65,6 +66,15 @@ program
       skipMcp: opts.skipMcp,
       yes: opts.yes,
     })
+  })
+
+program
+  .command('doctor')
+  .description('Verify setup: gateway reachable, framework wired, adapter installed, MCP registered')
+  .option('--cwd <dir>', 'Project directory (default: current)', process.cwd())
+  .option('-p, --port <port>', 'Gateway port (default: 3333)', (v) => parseInt(v, 10), 3333)
+  .action(async (opts) => {
+    await runDoctor({ cwd: opts.cwd, port: opts.port })
   })
 
 program

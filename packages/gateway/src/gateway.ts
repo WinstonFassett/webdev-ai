@@ -532,6 +532,23 @@ export async function startGateway(options: GatewayOptions) {
   })
 
 
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      const occupier = findPortOccupier(port)
+      console.error('')
+      console.error(`  ✗ Port ${port} is already in use.`)
+      if (occupier) {
+        console.error(`    Held by: PID ${occupier.pid}${occupier.cmd ? ` (${occupier.cmd})` : ''}`)
+      }
+      console.error('')
+      console.error(`  Either stop that process, or run with a different port:`)
+      console.error(`    npx web-dev-mcp -p <other-port>`)
+      console.error('')
+      process.exit(1)
+    }
+    throw err
+  })
+
   server.listen(port, () => {
     const proto = useHttps ? 'https' : 'http'
     console.log('')
@@ -546,4 +563,24 @@ export async function startGateway(options: GatewayOptions) {
   })
 
   return server
+}
+
+/** Best-effort lookup of the process holding a port (lsof on unix, netstat on win). */
+function findPortOccupier(port: number): { pid: string; cmd: string } | null {
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync(`netstat -ano -p TCP`, { encoding: 'utf8' })
+      const line = out.split('\n').find((l) => l.includes(`:${port}`) && /LISTENING/i.test(l))
+      if (!line) return null
+      const cols = line.trim().split(/\s+/)
+      return { pid: cols[cols.length - 1] ?? '?', cmd: '' }
+    }
+    const out = execSync(`lsof -iTCP:${port} -sTCP:LISTEN -P -n`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    const lines = out.trim().split('\n')
+    if (lines.length < 2) return null
+    const cols = lines[1].split(/\s+/)
+    return { pid: cols[1] ?? '?', cmd: cols[0] ?? '' }
+  } catch {
+    return null
+  }
 }

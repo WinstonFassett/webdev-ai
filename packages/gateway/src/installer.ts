@@ -26,11 +26,20 @@ export type InitOptions = {
   yes?: boolean
 }
 
-type Framework =
+export type Framework =
   | { name: 'vite'; projectDir: string; configPath: string }
   | { name: 'storybook'; projectDir: string; configPath: string }
   | { name: 'astro'; projectDir: string; configPath: string }
   | { name: 'next'; projectDir: string; configPath: string; bundler: 'webpack' | 'turbopack'; layoutPath: string | null }
+
+export const ADAPTER_PACKAGES = {
+  vite: VITE_PLUGIN_PKG,
+  storybook: VITE_PLUGIN_PKG,
+  astro: ASTRO_PKG,
+  next: NEXTJS_PKG,
+} as const
+
+export { VITE_PLUGIN_PKG, ASTRO_PKG, NEXTJS_PKG, NEXTJS_INIT_PATH, GATEWAY_PKG }
 
 type WireResult =
   | { status: 'edited' }
@@ -87,7 +96,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
     log.info(pc.dim('Skipped MCP registration (--skip-mcp)'))
   }
 
-  outro(pc.green('Done. Run your dev server.'))
+  outro(pc.green(`Done. Run your dev server, then ${pc.cyan('npx web-dev-mcp doctor')} to verify.`))
 }
 
 async function detectFrameworks(cwd: string, ctx: { yes?: boolean } = {}): Promise<Framework[]> {
@@ -142,7 +151,7 @@ async function detectFrameworks(cwd: string, ctx: { yes?: boolean } = {}): Promi
     .flatMap((sp) => sp.frameworks)
 }
 
-async function detectFrameworksIn(dir: string): Promise<Framework[]> {
+export async function detectFrameworksIn(dir: string): Promise<Framework[]> {
   const found: Framework[] = []
 
   const nextPath = firstExisting(dir, ['next.config.ts', 'next.config.js', 'next.config.mjs', 'next.config.mts'])
@@ -403,6 +412,33 @@ function injectInitIntoLayout(layoutPath: string): WireResult {
 }
 
 /**
+ * Check if a framework is fully wired (both import + wiring expression present).
+ * Re-exported as the basis for `doctor` checks.
+ */
+export function isWired(fw: Framework): boolean {
+  if (!existsSync(fw.configPath)) return false
+  const source = readFileSync(fw.configPath, 'utf8')
+  if (fw.name === 'vite') {
+    return hasRealImport(source, VITE_PLUGIN_PKG) && hasCallExpression(source, VITE_PLUGIN_NAME)
+  }
+  if (fw.name === 'astro') {
+    return hasRealImport(source, ASTRO_PKG) && hasCallExpression(source, ASTRO_NAME)
+  }
+  if (fw.name === 'storybook') {
+    return source.includes(STORYBOOK_PRESET)
+  }
+  if (fw.name === 'next') {
+    const cfgWired = hasRealImport(source, NEXTJS_PKG) && hasCallExpression(source, NEXTJS_WRAP)
+    if (fw.bundler === 'webpack') return cfgWired
+    if (!fw.layoutPath || !existsSync(fw.layoutPath)) return false
+    const layoutSource = readFileSync(fw.layoutPath, 'utf8')
+    const layoutWired = hasRealImport(layoutSource, NEXTJS_INIT_PATH) && /<WebDevMcpInit\b/.test(layoutSource)
+    return cfgWired && layoutWired
+  }
+  return false
+}
+
+/**
  * Check if a real `import ... from '<pkg>'` line is present (not a commented-out one).
  * Anchors to start-of-line + optional whitespace + literal `import` keyword, so `// import ...`
  * does not match.
@@ -622,6 +658,6 @@ async function installAdapters(cwd: string, frameworks: Framework[]): Promise<vo
   }
 }
 
-function relPath(cwd: string, p: string): string {
+export function relPath(cwd: string, p: string): string {
   return p.startsWith(cwd) ? p.slice(cwd.length + 1) : p
 }
