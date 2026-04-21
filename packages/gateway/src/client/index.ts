@@ -302,7 +302,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
   const commands: Record<string, (params: any) => any> = {
 
     getPageInfo() {
-      return { id: browserId, title: document.title, url: window.location.href, type: 'page' }
+      return { id: browserId, title: reportedTitle(), url: window.location.href, type: 'page' }
     },
 
     async eval(params: { code: string | string[] }) {
@@ -721,6 +721,32 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
     },
   }
 
+  // --- Tab title marker ---
+  // Prepend 👀 to document.title so the user can see at a glance which tabs are
+  // wired up to web-dev-mcp and thus controllable by the agent. Re-applies on
+  // app-driven title changes (React Helmet, Next.js metadata, SPA routing).
+  const TITLE_MARKER = '\u{1F440} '
+  let titleObserver: MutationObserver | null = null
+
+  function reportedTitle(): string {
+    return document.title.startsWith(TITLE_MARKER)
+      ? document.title.slice(TITLE_MARKER.length)
+      : document.title
+  }
+
+  function applyTitleMarker() {
+    if (!document.title.startsWith(TITLE_MARKER)) {
+      document.title = TITLE_MARKER + document.title
+    }
+  }
+
+  function installTitleMarker() {
+    if (titleObserver) return
+    applyTitleMarker()
+    titleObserver = new MutationObserver(applyTitleMarker)
+    titleObserver.observe(document.head, { childList: true, subtree: true, characterData: true })
+  }
+
   // --- Command WebSocket (gateway → browser, browser → gateway) ---
   let cmdWs: WebSocket | null = null
   let cmdReconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -732,8 +758,9 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
     cmdWs = new WebSocket(url)
 
     cmdWs.onopen = () => {
-      // Announce browser ID + page info
-      cmdWs!.send(JSON.stringify({ type: 'init', browserId, url: location.href, title: document.title }))
+      // Announce browser ID + page info (report un-marked title for clean display)
+      cmdWs!.send(JSON.stringify({ type: 'init', browserId, url: location.href, title: reportedTitle() }))
+      installTitleMarker()
       originalConsole.log('[web-dev-mcp] Command channel connected')
     }
 
