@@ -64,7 +64,7 @@
       {/if}
 
       {#if project}
-        <span class="text-muted-foreground/50">/</span>
+        <span class="text-dim">/</span>
         {#if route.view === 'project'}
           <span class="text-foreground font-medium truncate">{projectDisplayName(project)}</span>
         {:else}
@@ -73,7 +73,7 @@
       {/if}
 
       {#if server}
-        <span class="text-muted-foreground/50">/</span>
+        <span class="text-dim">/</span>
         {#if route.view === 'server'}
           <span class="text-foreground font-medium">{server.type}</span>
         {:else}
@@ -82,7 +82,7 @@
       {/if}
 
       {#if browser && route.view === 'browser'}
-        <span class="text-muted-foreground/50">/</span>
+        <span class="text-dim">/</span>
         <span class="text-foreground font-medium">{browserLabel}</span>
       {/if}
     </nav>

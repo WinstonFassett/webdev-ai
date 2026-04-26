@@ -244,9 +244,9 @@
     class="h-7 w-full border-t border-border flex items-center px-3 shrink-0 cursor-pointer hover:bg-muted/50 transition-colors"
   >
     <span class="text-[10px] text-muted-foreground">REPL</span>
-    <span class="text-[10px] text-muted-foreground/50 ml-2">Ctrl+`</span>
+    <span class="text-[10px] text-dim ml-2">Ctrl+`</span>
     {#if history.length > 0}
-      <span class="text-[10px] text-muted-foreground/30 ml-auto">{history.length} entries</span>
+      <span class="text-[10px] text-dim ml-auto">{history.length} entries</span>
     {/if}
   </button>
 {:else}
@@ -271,12 +271,12 @@
           {/each}
         </select>
       {:else}
-        <span class="text-[10px] text-muted-foreground/50">No browsers connected</span>
+        <span class="text-[10px] text-dim">No browsers connected</span>
       {/if}
 
       <div class="flex-1"></div>
 
-      <span class="text-[10px] text-muted-foreground/30">{history.length}</span>
+      <span class="text-[10px] text-dim">{history.length}</span>
       <button
         onclick={clearHistory}
         class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -289,13 +289,13 @@
       class="flex-1 overflow-y-auto font-mono text-[11px] leading-[18px] px-3 py-1"
     >
       {#if history.length === 0}
-        <div class="text-muted-foreground/40 py-2">
+        <div class="text-dim py-2">
           Enter to run · Shift+Enter for newline · eval() in browser
         </div>
       {:else}
         {#each history as entry, i (i)}
           <div class="py-0.5">
-            <div class="text-muted-foreground/50">
+            <div class="text-dim">
               <span class="text-accent">{'>'}</span> {entry.code.length > 100 ? entry.code.slice(0, 100) + '...' : entry.code}
             </div>
             <pre class="{entry.isError ? 'text-destructive' : 'text-foreground'} whitespace-pre-wrap pl-3">{entry.result}</pre>

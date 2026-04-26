@@ -29,7 +29,7 @@
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !browser}
-    <div class="text-muted-foreground/50 text-sm">Browser not found: {route.browserId}</div>
+    <div class="text-dim text-sm">Browser not found: {route.browserId}</div>
   {:else}
     <!-- Browser header -->
     <div class="space-y-2">

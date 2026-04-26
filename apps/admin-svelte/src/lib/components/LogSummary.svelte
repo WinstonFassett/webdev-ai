@@ -93,17 +93,17 @@
         <span class="text-warning">{warnCount} warn{warnCount !== 1 ? 's' : ''}</span>
       {/if}
       <span class="text-muted-foreground">{total} entries</span>
-      <span class="text-muted-foreground/50 text-[10px]">View all →</span>
+      <span class="text-dim text-[10px]">View all →</span>
     </div>
   </div>
   {#if recent.length === 0}
-    <div class="px-4 py-3 text-xs text-muted-foreground/50">No logs yet</div>
+    <div class="px-4 py-3 text-xs text-dim">No logs yet</div>
   {:else}
     <div class="font-mono text-[11px]">
       {#each recent as entry}
         <div class="flex gap-2 px-4 py-1 {isError(entry) ? 'text-destructive' : isWarn(entry) ? 'text-warning' : 'text-foreground'}">
-          <span class="text-muted-foreground/50 shrink-0 w-16">{formatTime(entry.timestamp)}</span>
-          <span class="text-muted-foreground/40 shrink-0 w-20 truncate">{entry.channel}</span>
+          <span class="text-dim shrink-0 w-16">{formatTime(entry.timestamp)}</span>
+          <span class="text-dim shrink-0 w-20 truncate">{entry.channel}</span>
           <span class="flex-1 truncate">{entryMessage(entry)}</span>
         </div>
       {/each}

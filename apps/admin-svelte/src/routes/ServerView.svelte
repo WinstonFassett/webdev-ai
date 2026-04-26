@@ -27,7 +27,7 @@
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !server}
-    <div class="text-muted-foreground/50 text-sm">Server not found</div>
+    <div class="text-dim text-sm">Server not found</div>
   {:else}
     <!-- Server header -->
     <div class="space-y-1">
@@ -38,19 +38,19 @@
       {#if server.name}
         <div class="text-xs text-muted-foreground">{server.name}</div>
       {/if}
-      <div class="text-xs text-muted-foreground/50 font-mono">{server.directory ?? ''}</div>
+      <div class="text-xs text-dim font-mono">{server.directory ?? ''}</div>
     </div>
 
     <!-- Endpoints -->
     <div class="border border-border rounded-lg bg-card">
-      <div class="px-4 py-2 text-[10px] text-muted-foreground/60 uppercase tracking-wide">
+      <div class="px-4 py-2 text-[10px] text-dim uppercase tracking-wide">
         Endpoints ({server.endpoints.length})
       </div>
       {#each server.endpoints as ep}
         <div class="border-t border-border px-4 py-2.5 flex items-center gap-4 text-xs">
           <span class="font-mono text-foreground">:{ep.port}</span>
-          <span class="text-muted-foreground/50">pid {ep.pid}</span>
-          <span class="text-muted-foreground/40 text-[10px]"><RelativeTime timestamp={ep.registeredAt} /></span>
+          <span class="text-dim">pid {ep.pid}</span>
+          <span class="text-dim text-[10px]"><RelativeTime timestamp={ep.registeredAt} /></span>
         </div>
       {/each}
     </div>
@@ -60,7 +60,7 @@
     <!-- Log paths -->
     {#if Object.keys(server.logPaths ?? {}).length > 0}
       <div class="border border-border rounded-lg bg-card">
-        <div class="px-4 py-2 text-[10px] text-muted-foreground/60 uppercase tracking-wide">Log Channels</div>
+        <div class="px-4 py-2 text-[10px] text-dim uppercase tracking-wide">Log Channels</div>
         {#each Object.entries(server.logPaths ?? {}) as [channel, path]}
           <div class="border-t border-border px-4 py-2 flex items-center justify-between gap-4 text-xs">
             <button
@@ -71,7 +71,7 @@
             >{channel}</button>
             <a
               href="vscode://file{path}"
-              class="text-muted-foreground/40 hover:text-foreground font-mono text-[10px] truncate max-w-96 transition-colors"
+              class="text-dim hover:text-foreground font-mono text-[10px] truncate max-w-96 transition-colors"
               title="Open in editor"
             >{path}</a>
           </div>
@@ -82,7 +82,7 @@
     <!-- Browsers -->
     {#if browsers.length > 0}
       <div class="border border-border rounded-lg bg-card">
-        <div class="px-4 py-2 text-[10px] text-muted-foreground/60 uppercase tracking-wide">
+        <div class="px-4 py-2 text-[10px] text-dim uppercase tracking-wide">
           Browsers ({browsers.length})
         </div>
         {#each browsers as browser, i}
@@ -95,10 +95,10 @@
             <div class="flex-1 min-w-0">
               <div class="text-foreground truncate">{browser.title ?? '—'}</div>
               {#if browser.url}
-                <div class="text-[10px] text-muted-foreground/50 font-mono truncate">{browser.url}</div>
+                <div class="text-[10px] text-dim font-mono truncate">{browser.url}</div>
               {/if}
             </div>
-            <span class="text-muted-foreground/40 text-[10px] shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
+            <span class="text-dim text-[10px] shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
           </button>
         {/each}
       </div>

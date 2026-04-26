@@ -29,13 +29,13 @@
   {:else}
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
   {#if !project}
-    <div class="text-muted-foreground/50 text-sm">Project not found: {route.projectId}</div>
+    <div class="text-dim text-sm">Project not found: {route.projectId}</div>
   {:else}
     <!-- Project header -->
     <div class="space-y-1">
       <h2 class="text-base font-medium text-foreground">{projectDisplayName(project)}</h2>
       {#if project.servers[0]?.directory}
-        <div class="text-xs text-muted-foreground/50 font-mono">{project.servers[0].directory}</div>
+        <div class="text-xs text-dim font-mono">{project.servers[0].directory}</div>
       {/if}
       <div class="flex gap-4 text-xs text-muted-foreground mt-1">
         <span>{project.servers.length} server{project.servers.length !== 1 ? 's' : ''}</span>
@@ -65,8 +65,8 @@
               {#each server.endpoints as ep}
                 <div class="flex items-center gap-3 text-xs">
                   <span class="font-mono text-foreground">:{ep.port}</span>
-                  <span class="text-muted-foreground/50">pid {ep.pid}</span>
-                  <span class="text-muted-foreground/40 text-[10px]"><RelativeTime timestamp={ep.registeredAt} /></span>
+                  <span class="text-dim">pid {ep.pid}</span>
+                  <span class="text-dim text-[10px]"><RelativeTime timestamp={ep.registeredAt} /></span>
                 </div>
               {/each}
             </div>
@@ -74,7 +74,7 @@
 
           <!-- Log dir -->
           {#if server.logDir}
-            <div class="mt-2 text-[10px] text-muted-foreground/40 font-mono truncate">
+            <div class="mt-2 text-[10px] text-dim font-mono truncate">
               {server.logDir}
             </div>
           {/if}
@@ -83,7 +83,7 @@
         <!-- Browsers for this server -->
         {#if serverBrowsers.length > 0}
           <div class="border-t border-border">
-            <div class="px-4 py-1.5 text-[10px] text-muted-foreground/60 uppercase tracking-wide">
+            <div class="px-4 py-1.5 text-[10px] text-dim uppercase tracking-wide">
               Browsers ({serverBrowsers.length})
             </div>
             {#each serverBrowsers as browser, i}
@@ -96,10 +96,10 @@
                 <div class="flex-1 min-w-0">
                   <div class="text-foreground truncate">{browser.title ?? '—'}</div>
                   {#if browser.url}
-                    <div class="text-[10px] text-muted-foreground/50 font-mono truncate">{browser.url}</div>
+                    <div class="text-[10px] text-dim font-mono truncate">{browser.url}</div>
                   {/if}
                 </div>
-                <span class="text-muted-foreground/40 text-[10px] shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
+                <span class="text-dim text-[10px] shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
               </button>
             {/each}
           </div>

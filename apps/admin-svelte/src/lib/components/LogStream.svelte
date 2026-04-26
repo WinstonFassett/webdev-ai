@@ -293,7 +293,7 @@
     if (level === 'error' || entry.channel === 'errors') return 'text-destructive'
     if (level === 'warn') return 'text-warning'
     if (level === 'info') return 'text-info'
-    if (level === 'debug') return 'text-muted-foreground/60'
+    if (level === 'debug') return 'text-dim'
     return 'text-foreground'
   }
 
@@ -400,7 +400,7 @@
         title="Filter channels"
       >
         <span class={filter.channels && filter.channels.length > 0 ? 'text-foreground' : ''}>{pickerLabel}</span>
-        <span class="text-muted-foreground/60">▾</span>
+        <span class="text-dim">▾</span>
       </button>
       {#if pickerOpen}
         <div class="absolute left-0 top-full mt-1 bg-card border border-border rounded shadow-lg z-30 py-1 min-w-48 max-h-80 overflow-y-auto">
@@ -413,13 +413,13 @@
             </div>
           {/if}
           {#if allChannels.length === 0}
-            <div class="px-3 py-2 text-[11px] text-muted-foreground/50">No channels yet</div>
+            <div class="px-3 py-2 text-[11px] text-dim">No channels yet</div>
           {:else}
             {#each allChannels as ch}
               {@const active = selectedChannels.includes(ch)}
               <button
                 onclick={() => toggleChannel(ch)}
-                class="w-full flex items-center gap-2 px-3 py-1 text-[11px] hover:bg-muted/50 text-left {active ? 'text-foreground' : 'text-muted-foreground/50'}"
+                class="w-full flex items-center gap-2 px-3 py-1 text-[11px] hover:bg-muted/50 text-left {active ? 'text-foreground' : 'text-dim'}"
               >
                 <span class="w-3 text-[10px]">{active ? '✓' : ''}</span>
                 <span class="font-mono">{ch}</span>
@@ -432,7 +432,7 @@
 
     <div class="flex-1"></div>
 
-    <span class="text-[10px] text-muted-foreground/50">{filteredEntries.length}</span>
+    <span class="text-[10px] text-dim">{filteredEntries.length}</span>
 
     <!-- Export dropdown -->
     <div class="relative" bind:this={exportRef}>
@@ -472,7 +472,7 @@
     class="flex-1 overflow-y-auto font-mono text-[11px] leading-[18px]"
   >
     {#if filteredEntries.length === 0}
-      <div class="flex items-center justify-center h-full text-muted-foreground/40 text-xs">
+      <div class="flex items-center justify-center h-full text-dim text-xs">
         Waiting for logs...
       </div>
     {:else}
@@ -487,7 +487,7 @@
               {/if}
             {/if}
             {#if row.project && (row.server || row.browser)}
-              <span class="text-muted-foreground/40">·</span>
+              <span class="text-dim">·</span>
             {/if}
             {#if row.server}
               {#if row.server.href}
@@ -497,22 +497,22 @@
               {/if}
             {/if}
             {#if row.server && row.browser}
-              <span class="text-muted-foreground/40">·</span>
+              <span class="text-dim">·</span>
             {/if}
             {#if row.browser}
               {#if row.browser.href}
-                <a href={row.browser.href} class="text-muted-foreground/70 hover:text-foreground hover:underline">{row.browser.label}</a>
+                <a href={row.browser.href} class="text-muted-foreground hover:text-foreground hover:underline">{row.browser.label}</a>
               {:else}
-                <span class="text-muted-foreground/70">{row.browser.label}</span>
+                <span class="text-muted-foreground">{row.browser.label}</span>
               {/if}
             {/if}
           </div>
         {:else}
           {@const entry = row.entry}
           <div class="flex gap-2 px-3 py-px hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_20px] {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
-            <span class="text-muted-foreground/50 shrink-0 w-16">{formatTime(entry.timestamp)}</span>
+            <span class="text-dim shrink-0 w-16">{formatTime(entry.timestamp)}</span>
             <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
-            <span class="shrink-0 w-20 text-muted-foreground/40 truncate">{entry.channel}</span>
+            <span class="shrink-0 w-20 text-dim truncate">{entry.channel}</span>
             <span class="flex-1 truncate {levelColor(entry)}">{entryMessage(entry)}</span>
           </div>
         {/if}

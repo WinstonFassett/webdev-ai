@@ -72,7 +72,7 @@
   </button>
 
   {#if registry.projects.length === 0 && registry.hydrated}
-    <p class="text-[10px] text-muted-foreground/50 px-2 pt-2">No projects connected</p>
+    <p class="text-[10px] text-dim px-2 pt-2">No projects connected</p>
   {/if}
 
   {#each registry.projects as project}
@@ -89,7 +89,7 @@
         <button
           onclick={() => toggle(project.projectId)}
           aria-label={isExpanded ? 'Collapse' : 'Expand'}
-          class="px-1 py-1 cursor-pointer text-[9px] text-muted-foreground/60 hover:text-foreground shrink-0 w-5 text-center"
+          class="px-1 py-1 cursor-pointer text-[9px] text-dim hover:text-foreground shrink-0 w-5 text-center"
         >
           {isExpanded ? '▾' : '▸'}
         </button>
@@ -101,7 +101,7 @@
           <StatusDot {status} />
           <span class="truncate flex-1">{projectDisplayName(project)}</span>
           {#if project.browsers.length > 0}
-            <span class="text-muted-foreground/40 text-[10px] shrink-0">{project.browsers.length}</span>
+            <span class="text-dim text-[10px] shrink-0">{project.browsers.length}</span>
           {/if}
         </button>
       </div>
@@ -114,11 +114,11 @@
           <button
             onclick={() => goServer(project.projectId, server.type)}
             class="w-full text-left pl-6 pr-2 py-0.5 rounded hover:bg-muted cursor-pointer transition-colors flex items-center gap-1.5 text-[11px]
-              {isActive('server', project.projectId, server.type) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/70'}"
+              {isActive('server', project.projectId, server.type) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground'}"
           >
             <ServerTypeBadge type={server.type} />
             {#if server.endpoints[0]?.port}
-              <span class="text-muted-foreground/40 text-[10px]">:{server.endpoints[0].port}</span>
+              <span class="text-dim text-[10px]">:{server.endpoints[0].port}</span>
             {/if}
           </button>
 
@@ -128,10 +128,10 @@
             <button
               onclick={() => goBrowser(project.projectId, server.type, bid)}
               class="w-full text-left pl-10 pr-2 py-0.5 rounded hover:bg-muted cursor-pointer transition-colors flex items-center gap-1.5 text-[11px]
-                {isActive('browser', project.projectId, server.type, bid) ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground/50'}"
+                {isActive('browser', project.projectId, server.type, bid) ? 'bg-muted text-foreground font-medium' : 'text-dim'}"
             >
               <span class="truncate">Browser {i + 1}</span>
-              <span class="text-[9px] text-muted-foreground/30 shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
+              <span class="text-[9px] text-dim shrink-0"><RelativeTime timestamp={browser.connectedAt} /></span>
             </button>
           {/each}
         {/each}

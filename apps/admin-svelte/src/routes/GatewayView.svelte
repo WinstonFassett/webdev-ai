@@ -76,7 +76,7 @@
               <div>
                 <div class="font-medium text-foreground text-sm">{projectDisplayName(project)}</div>
                 {#if project.servers[0]?.directory}
-                  <div class="text-[11px] text-muted-foreground/50 font-mono truncate max-w-48 mt-0.5">
+                  <div class="text-[11px] text-dim font-mono truncate max-w-48 mt-0.5">
                     {project.servers[0].directory.split('/').slice(-2).join('/')}
                   </div>
                 {/if}
@@ -99,7 +99,7 @@
       </div>
     </div>
   {:else}
-    <div class="text-center py-12 text-muted-foreground/50 text-sm">
+    <div class="text-center py-12 text-dim text-sm">
       No projects connected. Start a dev server with the web-dev-mcp adapter.
     </div>
   {/if}
