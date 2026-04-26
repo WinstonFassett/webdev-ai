@@ -35,7 +35,7 @@
     <div class="space-y-2">
       <div class="flex items-center gap-2">
         <h2 class="text-base font-medium text-foreground">Browser {ordinal}</h2>
-        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span class="w-2 h-2 rounded-full bg-success"></span>
       </div>
       {#if browser.title}
         <div class="text-sm text-foreground">{browser.title}</div>
@@ -68,7 +68,7 @@
           <span class="text-muted-foreground">Server</span>
           <button
             onclick={() => navigate({ ...route, view: 'server', type: server.type, browserId: undefined })}
-            class="font-mono text-accent hover:underline cursor-pointer flex items-center gap-1.5"
+            class="font-mono text-accent hover:underline cursor-pointer flex items-center gap-1.5 transition-colors"
           >
             {server.id}
             <ServerTypeBadge type={server.type} />
@@ -86,7 +86,7 @@
           <span class="text-muted-foreground">Project</span>
           <button
             onclick={() => navigate({ ...route, view: 'project', projectId: project.projectId, type: undefined, browserId: undefined })}
-            class="font-mono text-accent hover:underline cursor-pointer"
+            class="font-mono text-accent hover:underline cursor-pointer transition-colors"
           >{project.projectId}</button>
         </div>
       {/if}

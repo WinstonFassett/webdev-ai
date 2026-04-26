@@ -34,28 +34,28 @@
   <div class="p-6 space-y-6 overflow-y-auto flex-1">
     <!-- Gateway Status -->
   <div class="border border-border rounded-lg p-4 bg-card">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between mb-3">
       <h2 class="text-sm font-medium text-foreground">Gateway Status</h2>
-      <span class="text-xs px-2 py-0.5 rounded-full {registry.connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}">
+      <span class="text-xs px-2 py-0.5 rounded-full {registry.connected ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}">
         {registry.connected ? '● Connected' : '● Disconnected'}
       </span>
     </div>
-    <div class="grid grid-cols-4 gap-4">
-      <div class="space-y-1">
-        <div class="text-xs text-muted-foreground">Uptime</div>
-        <div class="text-lg font-medium text-foreground"><Duration since={Date.now() - registry.uptimeMs} /></div>
+    <div class="flex flex-wrap gap-x-8 gap-y-1.5 text-xs">
+      <div class="flex items-baseline gap-1.5">
+        <span class="text-muted-foreground">Uptime</span>
+        <span class="font-medium text-foreground"><Duration since={Date.now() - registry.uptimeMs} /></span>
       </div>
-      <div class="space-y-1">
-        <div class="text-xs text-muted-foreground">Mode</div>
-        <div class="text-lg font-medium text-foreground capitalize">{registry.mode}</div>
+      <div class="flex items-baseline gap-1.5">
+        <span class="text-muted-foreground">Mode</span>
+        <span class="font-medium text-foreground capitalize">{registry.mode}</span>
       </div>
-      <div class="space-y-1">
-        <div class="text-xs text-muted-foreground">Servers</div>
-        <div class="text-lg font-medium text-foreground">{totalServers}</div>
+      <div class="flex items-baseline gap-1.5">
+        <span class="text-muted-foreground">Servers</span>
+        <span class="font-medium text-foreground">{totalServers}</span>
       </div>
-      <div class="space-y-1">
-        <div class="text-xs text-muted-foreground">Browsers</div>
-        <div class="text-lg font-medium text-foreground">{totalBrowsers}</div>
+      <div class="flex items-baseline gap-1.5">
+        <span class="text-muted-foreground">Browsers</span>
+        <span class="font-medium text-foreground">{totalBrowsers}</span>
       </div>
     </div>
   </div>

@@ -66,7 +66,7 @@
             <button
               type="button"
               onclick={() => navigate({ ...route, tab: 'logs', channels: [channel] })}
-              class="text-foreground hover:text-accent-foreground hover:underline cursor-pointer text-left"
+              class="text-foreground hover:text-accent hover:underline cursor-pointer text-left transition-colors"
               title="View logs for this channel"
             >{channel}</button>
             <a

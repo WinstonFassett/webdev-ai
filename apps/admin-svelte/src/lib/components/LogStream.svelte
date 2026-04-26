@@ -317,6 +317,14 @@
     return JSON.stringify(p)
   }
 
+  let expandedKeys: Set<string> = $state(new Set())
+  function toggleExpand(key: string) {
+    const next = new Set(expandedKeys)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    expandedKeys = next
+  }
+
   let exportOpen = $state(false)
   let exportRef: HTMLDivElement | undefined = $state()
 
@@ -509,11 +517,23 @@
           </div>
         {:else}
           {@const entry = row.entry}
-          <div class="flex gap-2 px-3 py-px hover:bg-muted/30 [content-visibility:auto] [contain-intrinsic-size:auto_20px] {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}">
-            <span class="text-dim shrink-0 w-16">{formatTime(entry.timestamp)}</span>
-            <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
-            <span class="shrink-0 w-20 text-dim truncate">{entry.channel}</span>
-            <span class="flex-1 truncate {levelColor(entry)}">{entryMessage(entry)}</span>
+          {@const msg = entryMessage(entry)}
+          {@const isExpanded = expandedKeys.has(row.key)}
+          <div
+            onclick={() => toggleExpand(row.key)}
+            class="px-3 hover:bg-muted/30 cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_20px] {entry.channel === 'errors' || entry.payload?.level === 'error' ? 'bg-destructive/5' : ''}"
+          >
+            <div class="flex gap-2 py-px text-[11px] leading-[18px]">
+              <span class="text-dim shrink-0 w-16">{formatTime(entry.timestamp)}</span>
+              <span class="shrink-0 w-7 {levelColor(entry)}">{levelBadge(entry)}</span>
+              <span class="shrink-0 w-20 text-dim truncate">{entry.channel}</span>
+              <span class="flex-1 truncate {levelColor(entry)}">{msg}</span>
+            </div>
+            {#if isExpanded}
+              <div class="ml-[72px] pb-1 pl-2 border-l border-border/50 text-[11px] leading-[18px] whitespace-pre-wrap break-words {levelColor(entry)}">
+                {msg}
+              </div>
+            {/if}
           </div>
         {/if}
       {/each}
