@@ -9,8 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@winstonfassett/web-dev-mcp-gateway": "file:../../packages/gateway",
-    "@winstonfassett/web-dev-mcp-nextjs": "file:../../packages/adapter-nextjs",
+    "@winstonfassett/webdev-gateway": "file:../../packages/gateway",
+    "@winstonfassett/webdev-nextjs": "file:../../packages/adapter-nextjs",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"

@@ -2,7 +2,7 @@
 // Demo: AI agent browsing Hacker News via capnweb remote DOM
 //
 // Prerequisites:
-//   1. Gateway running:  npx web-dev-mcp --port 3333
+//   1. Gateway running:  npx webdev --port 3333
 //   2. Browser open to:  http://localhost:3333/https://news.ycombinator.com/
 //
 // This script connects as an agent, reads the front page, finds a story,

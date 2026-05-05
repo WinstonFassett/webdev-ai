@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
-import { withWebDevMcp } from "@winstonfassett/web-dev-mcp-nextjs";
+import { withWebdev } from "@winstonfassett/webdev-nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default withWebDevMcp(nextConfig);
+export default withWebdev(nextConfig);

@@ -15,6 +15,6 @@
     "astro": "^6.1.8"
   },
   "devDependencies": {
-    "@winstonfassett/web-dev-mcp-astro": "file:../../packages/adapter-astro"
+    "@winstonfassett/webdev-astro": "file:../../packages/adapter-astro"
   }
 }
