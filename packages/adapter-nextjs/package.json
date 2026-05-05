@@ -48,8 +48,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@winstonfassett/webdev-gateway": "^0.1.0"
+  },
   "peerDependencies": {
-    "@winstonfassett/webdev-gateway": "^0.1.0",
     "next": ">=14.0.0"
   },
   "peerDependenciesMeta": {

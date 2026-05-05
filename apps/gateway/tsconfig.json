@@ -12,7 +12,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "zod": ["./node_modules/zod/index.d.ts"],
+      "zod/v3": ["./node_modules/zod/v3/index.d.ts"],
+      "zod/v4": ["./node_modules/zod/v4/index.d.ts"],
+      "zod/v4/core": ["./node_modules/zod/v4/core/index.d.ts"],
+      "zod/*": ["./node_modules/zod/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/client/**"]

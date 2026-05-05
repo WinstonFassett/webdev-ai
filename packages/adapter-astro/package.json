@@ -38,17 +38,17 @@
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
+  "dependencies": {
     "@winstonfassett/webdev-gateway": "^0.1.0",
+    "@winstonfassett/webdev-vite": "^0.1.0"
+  },
+  "peerDependencies": {
     "astro": ">=5.0.0"
   },
   "peerDependenciesMeta": {
     "astro": {
       "optional": false
     }
-  },
-  "dependencies": {
-    "@winstonfassett/webdev-vite": "^0.1.0"
   },
   "devDependencies": {
     "@winstonfassett/webdev-gateway": "file:../../apps/gateway",

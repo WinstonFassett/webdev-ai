@@ -154,7 +154,7 @@ async function tryLoadElementSource(): Promise<any> {
   if (elementSourceMod !== undefined) return elementSourceMod
   try {
     // element-source is served at /__libs/element-source.js if gateway has it
-    const gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+    const gatewayOrigin = (window as any).__WEBDEV_ORIGIN__ || window.location.origin
     const mod = await import(/* @vite-ignore */ gatewayOrigin + '/__libs/element-source.js')
     elementSourceMod = mod
     return mod

@@ -41,7 +41,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
   let eventQueue: string[] = []
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
-  const serverId = (window as any).__WEB_DEV_MCP_SERVER__ || null
+  const serverId = (window as any).__WEBDEV_SERVER__ || null
 
   function connectEvents() {
     let url = gatewayWsProtocol + '//' + gatewayHost + '/__events'

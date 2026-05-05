@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "web-dev-mcp": {
+    "webdev": {
       "type": "sse",
       "url": "http://localhost:3333/__mcp/sse"
     }

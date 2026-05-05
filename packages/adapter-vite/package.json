@@ -55,8 +55,10 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@winstonfassett/webdev-gateway": "^0.1.0"
+  },
   "peerDependencies": {
-    "@winstonfassett/webdev-gateway": "^0.1.0",
     "vite": ">=6.0.0"
   },
   "peerDependenciesMeta": {

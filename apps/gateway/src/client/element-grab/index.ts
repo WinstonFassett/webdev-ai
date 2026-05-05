@@ -70,7 +70,7 @@ const CACHE_THRESHOLD = 2
 
 const init = () => {
   if (root) return
-  gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+  gatewayOrigin = (window as any).__WEBDEV_ORIGIN__ || window.location.origin
   root = mountRoot(cssText)
   overlay = new OverlayCanvas(root)
 

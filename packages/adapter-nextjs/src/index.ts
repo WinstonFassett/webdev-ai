@@ -111,9 +111,9 @@ export function withWebdev(
         const existing = config.watchOptions?.ignored
         let ignored: RegExp
         if (existing instanceof RegExp) {
-          ignored = new RegExp(existing.source + '|[/\\\\]\\.web-dev-mcp[/\\\\]')
+          ignored = new RegExp(existing.source + '|[/\\\\]\\.webdev[/\\\\]')
         } else {
-          ignored = /[/\\]\.web-dev-mcp[/\\]/
+          ignored = /[/\\]\.webdev[/\\]/
         }
         config.watchOptions = { ...config.watchOptions, ignored }
 
