@@ -58,7 +58,7 @@
     }
   },
   "devDependencies": {
-    "@winstonfassett/webdev-gateway": "file:../gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@types/node": "^25.5.0",
     "@types/react": "^19.0.0",
     "@types/ws": "^8.18.1",

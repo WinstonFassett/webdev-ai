@@ -33,7 +33,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
-    "@winstonfassett/webdev-gateway": "file:../../packages/gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@winstonfassett/webdev-vite": "file:../../packages/adapter-vite",
     "jsdom": "^28.1.0",
     "typescript": "^5.7.2",

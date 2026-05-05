@@ -51,7 +51,7 @@
     "@winstonfassett/webdev-vite": "^0.1.0"
   },
   "devDependencies": {
-    "@winstonfassett/webdev-gateway": "file:../gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@winstonfassett/webdev-vite": "file:../adapter-vite",
     "@types/node": "^25.5.0",
     "astro": "^5.0.0",

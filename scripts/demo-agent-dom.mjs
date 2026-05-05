@@ -9,7 +9,7 @@
 // navigates to its comments, and reads the top comment — all via live
 // remote DOM access. No eval, no CSP issues, promise-pipelined.
 
-import { connect } from '../packages/gateway/dist/agent-client.js'
+import { connect } from '../apps/gateway/dist/agent-client.js'
 
 const gw = await connect('ws://localhost:3333/__rpc/agent')
 const browser = gw.getProject()

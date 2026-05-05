@@ -7,7 +7,7 @@ export default defineConfig(({ command }) => ({
   plugins: [svelte(), tailwindcss(), webDevMcp()],
   base: command === 'build' ? '/__admin/' : '/',
   build: {
-    outDir: '../../packages/gateway/dist/admin',
+    outDir: '../../apps/gateway/dist/admin',
     emptyOutDir: true,
   },
   server: {

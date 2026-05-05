@@ -12,7 +12,7 @@
     "next": "^16.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@winstonfassett/webdev-gateway": "file:../../packages/gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@winstonfassett/webdev-nextjs": "file:../../packages/adapter-nextjs"
   },
   "devDependencies": {

@@ -65,7 +65,7 @@
     }
   },
   "devDependencies": {
-    "@winstonfassett/webdev-gateway": "file:../gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.0",

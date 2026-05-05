@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@winstonfassett/webdev-gateway": "file:../../packages/gateway",
+    "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@winstonfassett/webdev-nextjs": "file:../../packages/adapter-nextjs",
     "next": "16.2.4",
     "react": "19.2.4",

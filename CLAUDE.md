@@ -24,7 +24,7 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 
 ## Monorepo layout
 
-- `packages/gateway/` — Core gateway (`@winstonfassett/webdev-gateway`). Has its own [CLAUDE.md](packages/gateway/CLAUDE.md).
+- `apps/gateway/` — Core gateway (`@winstonfassett/webdev-gateway`). Has its own [CLAUDE.md](apps/gateway/CLAUDE.md).
 - `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/webdev-vite`).
 - `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/webdev-next`).
 - `packages/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
