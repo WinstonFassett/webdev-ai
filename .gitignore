@@ -8,7 +8,7 @@ dist/
 
 # MCP log directories
 .vite-mcp/
-.web-dev-mcp/
+.webdev/
 .playwright-mcp/
 
 # IDE
@@ -18,8 +18,6 @@ dist/
 examples/*/.claude/
 examples/*/.cursor/
 examples/*/.windsurf/
-.web-dev-mcp
-
 # Claude Code worktrees (local-only)
 .claude/worktrees/
 
