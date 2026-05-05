@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "web-dev-mcp",
+  "name": "webdev",
   "version": "0.1.0",
   "description": "Auto-attach CDP to dev server pages for AI agent browser control",
   "permissions": [
