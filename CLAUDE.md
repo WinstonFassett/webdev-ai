@@ -27,7 +27,7 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 - `apps/gateway/` — Core gateway (`@winstonfassett/webdev-gateway`). Has its own [CLAUDE.md](apps/gateway/CLAUDE.md).
 - `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/webdev-vite`).
 - `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/webdev-next`).
-- `packages/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
+- `apps/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
 - `packages/proxy/` — Dynamic proxy plugin (not published yet).
 - `apps/admin-svelte/` — Admin UI (builds into gateway dist)
 - `examples/vite-app/` — Vite test app
@@ -43,7 +43,7 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 - `eval_js` runs JS directly in the browser. `document`/`window` are real browser objects. Promises are auto-awaited.
 - `eval_js` accepts `string | string[]`. Array = auto-waited pipeline (DOM settles between steps).
 - `eval_js` has `browser.*` helpers and persistent `state` object (browser-side, per session).
-- **Chrome extension** (`packages/extension/`) auto-detects dev pages via `<meta name="webdev">` tag, attaches `chrome.debugger`, and connects to gateway's CDP relay. When connected, MCP tools (screenshot, click, etc.) auto-upgrade to Playwright API (pixel-perfect screenshots, reliable locators). Falls back to injected client RPC when extension not installed.
+- **Chrome extension** (`apps/extension/`) auto-detects dev pages via `<meta name="webdev">` tag, attaches `chrome.debugger`, and connects to gateway's CDP relay. When connected, MCP tools (screenshot, click, etc.) auto-upgrade to Playwright API (pixel-perfect screenshots, reliable locators). Falls back to injected client RPC when extension not installed.
 - CDP relay endpoints: `/__cdp-extension` (extension WS), `/devtools/browser/*` (Playwright WS), `/json/version` + `/json/list` (HTTP discovery).
 - Uses `@xmorse/playwright-core` with `getExistingCDPSession` (not `newCDPSession`) — required for relay compatibility.
 - After `navigate()`, browser reconnects — wait ~2-3s before next tool call. SPA route changes via `click` don't disconnect.
