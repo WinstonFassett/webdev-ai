@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     const tabId = sender.tab.id
 
     gatewayUrl = msg.gatewayUrl || 'http://localhost:3333'
-    console.log(`[web-dev-mcp] Dev page detected: tab ${tabId} → ${msg.url} (gateway: ${gatewayUrl})`)
+    console.log(`[webdev] Dev page detected: tab ${tabId} → ${msg.url} (gateway: ${gatewayUrl})`)
 
     // Register as known (available) — do NOT attach debugger yet
     knownTabs.set(tabId, {
@@ -91,7 +91,7 @@ chrome.debugger.onDetach.addListener((source, reason) => {
   if (!tabId || !attachedTabs.has(tabId)) return
 
   const tab = attachedTabs.get(tabId)
-  console.log(`[web-dev-mcp] Debugger detached: tab ${tabId}, reason: ${reason}`)
+  console.log(`[webdev] Debugger detached: tab ${tabId}, reason: ${reason}`)
 
   if (tab) {
     sendToRelay({
@@ -114,7 +114,7 @@ async function attachTab(tabId) {
 
   try {
     await chrome.debugger.attach(debuggee, '1.3')
-    console.log(`[web-dev-mcp] Debugger attached to tab ${tabId}`)
+    console.log(`[webdev] Debugger attached to tab ${tabId}`)
 
     await chrome.debugger.sendCommand(debuggee, 'Page.enable')
 
@@ -122,13 +122,13 @@ async function attachTab(tabId) {
       try {
         await chrome.debugger.sendCommand(debuggee, 'Target.setAutoAttach', autoAttachParams)
       } catch (e) {
-        console.warn(`[web-dev-mcp] Failed to apply auto-attach for tab ${tabId}:`, e)
+        console.warn(`[webdev] Failed to apply auto-attach for tab ${tabId}:`, e)
       }
     }
 
     const result = await chrome.debugger.sendCommand(debuggee, 'Target.getTargetInfo')
     const targetInfo = result.targetInfo
-    console.log(`[web-dev-mcp] Target.getTargetInfo result:`, JSON.stringify(targetInfo))
+    console.log(`[webdev] Target.getTargetInfo result:`, JSON.stringify(targetInfo))
 
     // Target.getTargetInfo often returns empty/broken URL via chrome.debugger; get from tab API
     if (!targetInfo.url || targetInfo.url === '' || targetInfo.url === ':') {
@@ -154,9 +154,9 @@ async function attachTab(tabId) {
       },
     })
 
-    console.log(`[web-dev-mcp] Tab ${tabId} attached: session=${sessionId}, url=${targetInfo.url}`)
+    console.log(`[webdev] Tab ${tabId} attached: session=${sessionId}, url=${targetInfo.url}`)
   } catch (e) {
-    console.error(`[web-dev-mcp] Failed to attach tab ${tabId}:`, e.message)
+    console.error(`[webdev] Failed to attach tab ${tabId}:`, e.message)
   }
 }
 
@@ -166,9 +166,9 @@ async function detachTab(tabId) {
 
   try {
     await chrome.debugger.detach({ tabId })
-    console.log(`[web-dev-mcp] Debugger detached from tab ${tabId}`)
+    console.log(`[webdev] Debugger detached from tab ${tabId}`)
   } catch (e) {
-    console.warn(`[web-dev-mcp] Failed to detach tab ${tabId}:`, e.message)
+    console.warn(`[webdev] Failed to detach tab ${tabId}:`, e.message)
   }
 
   // onDetach listener handles cleanup and relay notification
@@ -307,12 +307,12 @@ function ensureRelayConnection() {
   if (relayWs && relayWs.readyState === WebSocket.OPEN) return
 
   const wsUrl = gatewayUrl.replace(/^http/, 'ws') + '/__cdp-extension'
-  console.log(`[web-dev-mcp] Connecting to relay at ${wsUrl}`)
+  console.log(`[webdev] Connecting to relay at ${wsUrl}`)
 
   relayWs = new WebSocket(wsUrl)
 
   relayWs.onopen = () => {
-    console.log('[web-dev-mcp] Connected to relay')
+    console.log('[webdev] Connected to relay')
 
     // Re-announce all known tabs as available
     for (const [tabId, info] of knownTabs) {
@@ -356,18 +356,18 @@ function ensureRelayConnection() {
         sendToRelay({ method: 'pong' })
       }
     } catch (e) {
-      console.error('[web-dev-mcp] Failed to parse relay message:', e)
+      console.error('[webdev] Failed to parse relay message:', e)
     }
   }
 
   relayWs.onclose = () => {
-    console.log('[web-dev-mcp] Relay disconnected, reconnecting in 3s...')
+    console.log('[webdev] Relay disconnected, reconnecting in 3s...')
     relayWs = null
     scheduleReconnect()
   }
 
   relayWs.onerror = (e) => {
-    console.error('[web-dev-mcp] Relay WebSocket error')
+    console.error('[webdev] Relay WebSocket error')
     // onclose will fire after onerror, reconnect handled there
   }
 }
@@ -380,7 +380,7 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
     if (!relayWs || relayWs.readyState !== WebSocket.OPEN) {
-      console.log('[web-dev-mcp] Attempting reconnect...')
+      console.log('[webdev] Attempting reconnect...')
       ensureRelayConnection()
     }
   }, 3000)
@@ -415,8 +415,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
       },
     })
     attachedTabs.delete(tabId)
-    console.log(`[web-dev-mcp] Tab ${tabId} removed, cleaned up`)
+    console.log(`[webdev] Tab ${tabId} removed, cleaned up`)
   }
 })
 
-console.log('[web-dev-mcp] Background service worker loaded (passive mode)')
+console.log('[webdev] Background service worker loaded (passive mode)')
