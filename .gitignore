@@ -22,3 +22,7 @@ examples/*/.windsurf/
 
 # Claude Code worktrees (local-only)
 .claude/worktrees/
+
+# Prevent mixed package manager lockfiles
+pnpm-lock.yaml
+yarn.lock

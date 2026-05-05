@@ -1,21 +1,21 @@
 import type { AstroIntegration } from 'astro'
 import { fileURLToPath } from 'node:url'
-import { webDevMcp, type ViteAdapterOptions } from '@winstonfassett/web-dev-mcp-vite'
-import { makeServerId } from '@winstonfassett/web-dev-mcp-gateway/helpers'
+import { webdev, type ViteAdapterOptions } from '@winstonfassett/webdev-vite'
+import { makeServerId } from '@winstonfassett/webdev-gateway/helpers'
 
 export type AstroAdapterOptions = Omit<ViteAdapterOptions, 'serverType'>
 
-export default function webDevMcpAstro(options: AstroAdapterOptions = {}): AstroIntegration {
+export default function webdevAstro(options: AstroAdapterOptions = {}): AstroIntegration {
   const gatewayUrl = options.gateway ?? 'http://localhost:3333'
   return {
-    name: '@winstonfassett/web-dev-mcp-astro',
+    name: '@winstonfassett/webdev-astro',
     hooks: {
       'astro:config:setup': ({ command, config, updateConfig, injectScript }) => {
         if (command !== 'dev') return
 
         updateConfig({
           vite: {
-            plugins: [webDevMcp({ ...options, serverType: 'astro' }) as any],
+            plugins: [webdev({ ...options, serverType: 'astro' }) as any],
           },
         })
 
@@ -31,11 +31,11 @@ export default function webDevMcpAstro(options: AstroAdapterOptions = {}): Astro
         const originJson = JSON.stringify(gatewayUrl)
         const serverIdJson = JSON.stringify(serverId)
         const inline =
-          `window.__WEB_DEV_MCP_ORIGIN__=${originJson};` +
-          `window.__WEB_DEV_MCP_SERVER__=${serverIdJson};` +
-          `(function(){var m=document.createElement('meta');m.name='web-dev-mcp';m.content=${originJson};` +
+          `window.__WEBDEV_ORIGIN__=${originJson};` +
+          `window.__WEBDEV_SERVER__=${serverIdJson};` +
+          `(function(){var m=document.createElement('meta');m.name='webdev';m.content=${originJson};` +
           `m.setAttribute('data-server-id',${serverIdJson});document.head.appendChild(m);})();` +
-          `(function(){var s=document.createElement('script');s.src='/__web-dev-mcp.js';document.head.appendChild(s);})();`
+          `(function(){var s=document.createElement('script');s.src='/__webdev.js';document.head.appendChild(s);})();`
 
         injectScript('head-inline', inline)
       },

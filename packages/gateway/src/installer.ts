@@ -6,16 +6,16 @@ import { execa } from 'execa'
 import pc from 'picocolors'
 import { autoRegister } from './auto-register.js'
 
-const VITE_PLUGIN_PKG = '@winstonfassett/web-dev-mcp-vite'
-const ASTRO_PKG = '@winstonfassett/web-dev-mcp-astro'
-const NEXTJS_PKG = '@winstonfassett/web-dev-mcp-nextjs'
-const NEXTJS_INIT_PATH = '@winstonfassett/web-dev-mcp-nextjs/init'
-const GATEWAY_PKG = '@winstonfassett/web-dev-mcp-gateway'
-const VITE_PLUGIN_NAME = 'webDevMcp'
-const ASTRO_NAME = 'webDevMcp'
-const NEXTJS_WRAP = 'withWebDevMcp'
-const NEXTJS_INIT_COMPONENT = 'WebDevMcpInit'
-const STORYBOOK_PRESET = '@winstonfassett/web-dev-mcp-vite/storybook'
+const VITE_PLUGIN_PKG = '@winstonfassett/webdev-vite'
+const ASTRO_PKG = '@winstonfassett/webdev-astro'
+const NEXTJS_PKG = '@winstonfassett/webdev-next'
+const NEXTJS_INIT_PATH = '@winstonfassett/webdev-next/init'
+const GATEWAY_PKG = '@winstonfassett/webdev-gateway'
+const VITE_PLUGIN_NAME = 'webdev'
+const ASTRO_NAME = 'webdev'
+const NEXTJS_WRAP = 'withWebdev'
+const NEXTJS_INIT_COMPONENT = 'WebdevInit'
+const STORYBOOK_PRESET = '@winstonfassett/webdev-vite/storybook'
 
 export type InitOptions = {
   cwd: string
@@ -47,7 +47,7 @@ type WireResult =
   | { status: 'manual'; manualSteps: string }
 
 export async function runInit(opts: InitOptions): Promise<void> {
-  intro(pc.cyan('web-dev-mcp init'))
+  intro(pc.cyan('webdev init'))
 
   const frameworks = await detectFrameworks(opts.cwd, { yes: opts.yes })
   if (frameworks.length === 0) {
@@ -102,7 +102,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
     log.info(pc.dim('Skipped MCP registration (--skip-mcp)'))
   }
 
-  outro(pc.green(`Done. Run your dev server, then ${pc.cyan('npx web-dev-mcp doctor')} to verify.`))
+  outro(pc.green(`Done. Run your dev server, then ${pc.cyan('npx webdev doctor')} to verify.`))
 }
 
 async function detectFrameworks(cwd: string, ctx: { yes?: boolean } = {}): Promise<Framework[]> {
@@ -231,7 +231,7 @@ async function detectNextBundler(cwd: string): Promise<'webpack' | 'turbopack'> 
     const choice = await select({
       message: 'Both --webpack and --turbopack found in your scripts. Which to wire?',
       options: [
-        { value: 'turbopack', label: 'turbopack — wraps next.config + adds <WebDevMcpInit /> to layout' },
+        { value: 'turbopack', label: 'turbopack — wraps next.config + adds <WebdevInit /> to layout' },
         { value: 'webpack', label: 'webpack — wraps next.config only (entry injection is automatic)' },
       ],
       initialValue: devPrefers,

@@ -16,7 +16,7 @@ The user's normal workflow leaves one gateway running on port 3333 with live wor
 npm run gateway:restart    # build (gateway + admin-svelte) + stop :3333 + start detached
 npm run gateway:status     # is it up? which PID?
 npm run gateway:stop       # kill :3333 owner
-npm run gateway:start      # nohup launch, logs → /tmp/web-dev-mcp-gateway.log
+npm run gateway:start      # nohup launch, logs → /tmp/webdev-gateway.log
 npm run gateway:logs       # tail -f the log file
 ```
 
@@ -24,9 +24,9 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 
 ## Monorepo layout
 
-- `packages/gateway/` — Core gateway (`@winstonfassett/web-dev-mcp-gateway`). Has its own [CLAUDE.md](packages/gateway/CLAUDE.md).
-- `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/web-dev-mcp-vite`).
-- `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/web-dev-mcp-nextjs`).
+- `packages/gateway/` — Core gateway (`@winstonfassett/webdev-gateway`). Has its own [CLAUDE.md](packages/gateway/CLAUDE.md).
+- `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/webdev-vite`).
+- `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/webdev-next`).
 - `packages/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
 - `packages/proxy/` — Dynamic proxy plugin (not published yet).
 - `apps/admin-svelte/` — Admin UI (builds into gateway dist)
@@ -37,17 +37,17 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 
 ## Non-obvious things
 
-- Gateway CLI is `npx web-dev-mcp` (bin name, not package name).
-- Adapters auto-start the gateway if it's not running. PID written to `/tmp/web-dev-mcp-*.pid`.
+- Gateway CLI is `npx webdev` (bin name, not package name).
+- Adapters auto-start the gateway if it's not running. PID written to `/tmp/webdev-*.pid`.
 - MCP core toolset (6 tools) is at `/__mcp/sse`. Full set (23 tools) at `/__mcp/sse?tools=full`.
 - `eval_js` runs JS directly in the browser. `document`/`window` are real browser objects. Promises are auto-awaited.
 - `eval_js` accepts `string | string[]`. Array = auto-waited pipeline (DOM settles between steps).
 - `eval_js` has `browser.*` helpers and persistent `state` object (browser-side, per session).
-- **Chrome extension** (`packages/extension/`) auto-detects dev pages via `<meta name="web-dev-mcp">` tag, attaches `chrome.debugger`, and connects to gateway's CDP relay. When connected, MCP tools (screenshot, click, etc.) auto-upgrade to Playwright API (pixel-perfect screenshots, reliable locators). Falls back to injected client RPC when extension not installed.
+- **Chrome extension** (`packages/extension/`) auto-detects dev pages via `<meta name="webdev">` tag, attaches `chrome.debugger`, and connects to gateway's CDP relay. When connected, MCP tools (screenshot, click, etc.) auto-upgrade to Playwright API (pixel-perfect screenshots, reliable locators). Falls back to injected client RPC when extension not installed.
 - CDP relay endpoints: `/__cdp-extension` (extension WS), `/devtools/browser/*` (Playwright WS), `/json/version` + `/json/list` (HTTP discovery).
 - Uses `@xmorse/playwright-core` with `getExistingCDPSession` (not `newCDPSession`) — required for relay compatibility.
 - After `navigate()`, browser reconnects — wait ~2-3s before next tool call. SPA route changes via `click` don't disconnect.
-- Gateway `web-dev-mcp-client.js` (~60KB minified) is a bundled browser script injected into pages. Built by `build-client.mjs` using esbuild. Served at `/__web-dev-mcp.js`.
+- Gateway `webdev-client.js` (~60KB minified) is a bundled browser script injected into pages. Built by `build-client.mjs` using esbuild. Served at `/__webdev.js`.
 
 ## npm Publishing
 
@@ -56,4 +56,4 @@ npm run prepublish:check   # build + dry-run all packages
 npm run publish:all        # publish gateway → vite → nextjs (in order)
 ```
 
-Packages: `@winstonfassett/web-dev-mcp-gateway`, `@winstonfassett/web-dev-mcp-vite`, `@winstonfassett/web-dev-mcp-nextjs`.
+Packages: `@winstonfassett/webdev-gateway`, `@winstonfassett/webdev-vite`, `@winstonfassett/webdev-next`.

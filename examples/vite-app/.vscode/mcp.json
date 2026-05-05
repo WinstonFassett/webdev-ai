@@ -1,0 +1,5 @@
+{
+  "servers": {
+    "web-dev-mcp": {"url":"http://localhost:3333/__mcp/sse"}
+  }
+}

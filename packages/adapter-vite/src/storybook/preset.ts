@@ -1,8 +1,8 @@
 /**
- * Storybook preset for web-dev-mcp
+ * Storybook preset for webdev
  *
  * Usage in .storybook/main.ts:
- *   addons: ['@winstonfassett/web-dev-mcp-vite/storybook']
+ *   addons: ['@winstonfassett/webdev-vite/storybook']
  */
 
 export interface StorybookPresetOptions {
@@ -13,9 +13,9 @@ export async function viteFinal(
   config: Record<string, any>,
   options: { presetOptions?: StorybookPresetOptions } = {},
 ) {
-  const { webDevMcp } = await import('../index.js')
+  const { webdev } = await import('../index.js')
   const gateway = options.presetOptions?.gateway
   config.plugins = config.plugins || []
-  config.plugins.push(webDevMcp({ gateway, serverType: 'storybook' }))
+  config.plugins.push(webdev({ gateway, serverType: 'storybook' }))
   return config
 }

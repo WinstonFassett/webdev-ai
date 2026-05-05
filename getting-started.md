@@ -1,13 +1,13 @@
-# Getting Started with web-dev-mcp
+# Getting Started with webdev
 
-web-dev-mcp gives AI agents live browser access during development — console logs, DOM queries, screenshots, form filling, navigation.
+webdev gives AI agents live browser access during development — console logs, DOM queries, screenshots, form filling, navigation.
 
 ## Easy mode
 
 In your project directory:
 
 ```bash
-npx web-dev-mcp init
+npx webdev init
 ```
 
 This detects your framework (Vite / Next.js / Astro / Storybook), wires the adapter, installs the dev dependencies, and registers the MCP server with Claude / Cursor / Windsurf / VS Code in one shot.
@@ -36,19 +36,19 @@ The gateway is a lightweight local server (`:3333`) that routes between agents a
 **Global install** (recommended — use across all projects):
 
 ```bash
-npm install -g @winstonfassett/web-dev-mcp-gateway
+npm install -g @winstonfassett/webdev-gateway
 ```
 
 Then start it with:
 
 ```bash
-web-dev-mcp
+webdev
 ```
 
 **Or run without installing:**
 
 ```bash
-npx @winstonfassett/web-dev-mcp-gateway
+npx @winstonfassett/webdev-gateway
 ```
 
 > The gateway must be running for everything else to work. Framework adapters (step 2) auto-start it, so you often don't need a separate terminal.
@@ -62,57 +62,57 @@ The gateway needs a client script injected into your pages. Pick your framework:
 ### Vite
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-vite @winstonfassett/webdev-gateway
 ```
 
 ```ts
 // vite.config.ts
-import { webDevMcp } from '@winstonfassett/web-dev-mcp-vite'
+import { webdev } from '@winstonfassett/webdev-vite'
 
 export default defineConfig({
-  plugins: [webDevMcp()],
+  plugins: [webdev()],
 })
 ```
 
 ### Storybook (Vite-based)
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-vite @winstonfassett/webdev-gateway
 ```
 
 ```ts
 // .storybook/main.ts
 export default {
-  addons: ['@winstonfassett/web-dev-mcp-vite/storybook'],
+  addons: ['@winstonfassett/webdev-vite/storybook'],
 }
 ```
 
 ### Astro
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-astro @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-astro @winstonfassett/webdev-gateway
 ```
 
 ```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config'
-import webDevMcp from '@winstonfassett/web-dev-mcp-astro'
+import webdev from '@winstonfassett/webdev-astro'
 
 export default defineConfig({
-  integrations: [webDevMcp()],
+  integrations: [webdev()],
 })
 ```
 
 ### Next.js (Webpack)
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-nextjs @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-next @winstonfassett/webdev-gateway
 ```
 
 ```js
 // next.config.js
-import { withWebDevMcp } from '@winstonfassett/web-dev-mcp-nextjs'
-export default withWebDevMcp({ /* your config */ })
+import { withWebdev } from '@winstonfassett/webdev-next'
+export default withWebdev({ /* your config */ })
 ```
 
 That's it — client injection happens via webpack entry.
@@ -123,12 +123,12 @@ Same install and config wrapper as above, plus one extra step — Turbopack can'
 
 ```tsx
 // app/layout.tsx
-import { WebDevMcpInit } from '@winstonfassett/web-dev-mcp-nextjs/init'
+import { WebdevInit } from '@winstonfassett/webdev-next/init'
 
 export default function RootLayout({ children }) {
   return (
     <html><body>
-      <WebDevMcpInit />
+      <WebdevInit />
       {children}
     </body></html>
   )
@@ -140,7 +140,7 @@ export default function RootLayout({ children }) {
 No adapter needed. For frameworks without a dedicated adapter (Remix, SvelteKit standalone, Nuxt, SolidStart, Qwik, plain Express, etc.) use one of:
 
 - **Proxy mode** (zero edits to your app): browse `http://localhost:3333/http://localhost:YOUR_PORT/` — the gateway proxies and instruments any URL automatically. Best for quick experiments and frameworks the `init` command doesn't recognize.
-- **Script tag** (one line in your HTML): add `<script src="http://localhost:3333/__web-dev-mcp.js"></script>` to your `<head>`. Works with any HTML rendering (SSR, SSG, plain Express).
+- **Script tag** (one line in your HTML): add `<script src="http://localhost:3333/__webdev.js"></script>` to your `<head>`. Works with any HTML rendering (SSR, SSG, plain Express).
 
 > All adapters auto-start the gateway. If you installed globally, the adapter finds it. No separate terminal needed.
 
@@ -153,7 +153,7 @@ The MCP server is an SSE endpoint on the gateway. You need to register it with e
 ### Auto-register (all agents at once)
 
 ```bash
-npx @winstonfassett/web-dev-mcp-gateway --auto-register
+npx @winstonfassett/webdev-gateway --auto-register
 ```
 
 This writes the MCP config into all four locations:
@@ -171,7 +171,7 @@ Add to the appropriate config file for your agent:
 ```json
 {
   "mcpServers": {
-    "web-dev-mcp": {
+    "webdev": {
       "type": "sse",
       "url": "http://localhost:3333/__mcp/sse"
     }
@@ -185,7 +185,7 @@ Add to the appropriate config file for your agent:
 ```json
 {
   "mcpServers": {
-    "web-dev-mcp": {
+    "webdev": {
       "url": "http://localhost:3333/__mcp/sse"
     }
   }
@@ -198,7 +198,7 @@ Add to the appropriate config file for your agent:
 ```json
 {
   "mcpServers": {
-    "web-dev-mcp": {
+    "webdev": {
       "url": "http://localhost:3333/__mcp/sse"
     }
   }
@@ -211,7 +211,7 @@ Add to the appropriate config file for your agent:
 ```json
 {
   "servers": {
-    "web-dev-mcp": {
+    "webdev": {
       "type": "sse",
       "url": "http://localhost:3333/__mcp/sse"
     }
@@ -229,16 +229,16 @@ Add to the appropriate config file for your agent:
 Skills teach Claude Code *how* to use the MCP tools effectively — workflows, gotchas, best practices.
 
 ```bash
-npx skills add WinstonFassett/web-dev-mcp --all
+npx skills add WinstonFassett/webdev --all
 ```
 
 The `--all` flag installs all skills to all detected agents (Claude Code, Cursor, Windsurf, etc.) in one shot. To target specific agents:
 
 ```bash
-npx skills add WinstonFassett/web-dev-mcp --agent claude-code cursor
+npx skills add WinstonFassett/webdev --agent claude-code cursor
 ```
 
-This installs the `web-dev-mcp` skill which covers:
+This installs the `webdev` skill which covers:
 - When to call `set_project` and `get_diagnostics`
 - How to use `eval_js` with `browser.*` helpers
 - Test-fix loop patterns, screenshot workflows, DOM navigation
@@ -263,13 +263,13 @@ This installs the `web-dev-mcp` skill which covers:
 
 | What | Command / Location |
 |------|-------------------|
-| Start gateway | `web-dev-mcp` or `npx @winstonfassett/web-dev-mcp-gateway` |
+| Start gateway | `webdev` or `npx @winstonfassett/webdev-gateway` |
 | Gateway port | `:3333` (change with `-p`) |
 | MCP endpoint | `http://localhost:3333/__mcp/sse` |
 | Full toolset (23 tools) | `http://localhost:3333/__mcp/sse?tools=full` |
 | Admin UI | `http://localhost:3333` |
-| Auto-register MCP | `npx @winstonfassett/web-dev-mcp-gateway --auto-register` |
-| Network capture | `web-dev-mcp --network` |
+| Auto-register MCP | `npx @winstonfassett/webdev-gateway --auto-register` |
+| Network capture | `webdev --network` |
 
 ## Compatibility
 
@@ -278,7 +278,7 @@ What's been verified end-to-end (strip → init → dev server → agent calls a
 | Framework | Verified | Notes |
 |---|---|---|
 | Vite | ✓ | reference framework |
-| Astro | ✓ | via `@winstonfassett/web-dev-mcp-astro` |
+| Astro | ✓ | via `@winstonfassett/webdev-astro` |
 | Next.js (Webpack) | ~ | byte-perfect wiring; runtime smoke deferred |
 | Next.js (Turbopack) | ~ | byte-perfect wiring; runtime smoke deferred |
 | Storybook (Vite) | ~ | byte-perfect wiring; runtime smoke deferred |
@@ -294,15 +294,15 @@ Node ≥ 20.6 (gateway). Tested agents: Claude Code, Cursor (MCP); VS Code Copil
 
 **No browsers connected**: Make sure your dev app is open in a browser *after* the gateway is running. Check the browser console for connection errors.
 
-**"Did it work?"**: Run `npx web-dev-mcp doctor` after `init` + starting your dev server. Reports gateway reachability, framework wiring, adapter install, and MCP registration.
+**"Did it work?"**: Run `npx webdev doctor` after `init` + starting your dev server. Reports gateway reachability, framework wiring, adapter install, and MCP registration.
 
-**Gateway not starting** (port in use): The gateway prints the offending PID — `Held by: PID 12345 (node). Either stop that process, or run with a different port: npx web-dev-mcp -p <other-port>`. To investigate manually: `lsof -i :3333` (macOS/Linux) or `netstat -ano | findstr :3333` (Windows).
+**Gateway not starting** (port in use): The gateway prints the offending PID — `Held by: PID 12345 (node). Either stop that process, or run with a different port: npx webdev -p <other-port>`. To investigate manually: `lsof -i :3333` (macOS/Linux) or `netstat -ano | findstr :3333` (Windows).
 
 **MCP tools not appearing in agent**: Restart the agent after adding `.mcp.json`. Some agents require a reload to pick up new MCP servers.
 
-**Turbopack: no logs appearing**: Did you add `<WebDevMcpInit />` to your layout? Turbopack requires the explicit component — the config wrapper alone isn't enough. `npx web-dev-mcp doctor` will flag this.
+**Turbopack: no logs appearing**: Did you add `<WebdevInit />` to your layout? Turbopack requires the explicit component — the config wrapper alone isn't enough. `npx webdev doctor` will flag this.
 
-**HMR / build events not capturing**: The adapter forwards HMR via the gateway helper. If you wired the config manually but skipped the helper import, build events won't reach the gateway. Easiest fix: re-run `npx web-dev-mcp init` (idempotent — won't duplicate wiring).
+**HMR / build events not capturing**: The adapter forwards HMR via the gateway helper. If you wired the config manually but skipped the helper import, build events won't reach the gateway. Easiest fix: re-run `npx webdev init` (idempotent — won't duplicate wiring).
 
 ### CSP-strict apps (script blocked)
 
@@ -323,7 +323,7 @@ If your dev server uses HTTPS (e.g. `vite --https`, webpack-dev-server with HTTP
 
 Three options:
 
-1. **Run the gateway with HTTPS too** — `npx web-dev-mcp --https` (self-signed). Trust the cert in your browser, then the page can reach `https://localhost:3333`.
+1. **Run the gateway with HTTPS too** — `npx webdev --https` (self-signed). Trust the cert in your browser, then the page can reach `https://localhost:3333`.
 2. **Use a tunnel** like `cloudflared` or `ngrok` that gives you `wss://` for the gateway URL.
 3. **Drop HTTPS in dev** — usually the simplest path; HTTPS-only behaviors (e.g. service workers) are out of scope for this tool.
 

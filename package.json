@@ -1,5 +1,5 @@
 {
-  "name": "web-dev-mcp",
+  "name": "webdev",
   "version": "0.1.0",
   "description": "Monorepo for web development MCP tools",
   "type": "module",
@@ -10,16 +10,16 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build -w @winstonfassett/web-dev-mcp-gateway && npm run build -w @winstonfassett/web-dev-mcp-vite && npm run build -w @winstonfassett/web-dev-mcp-astro && npm run build -w @winstonfassett/web-dev-mcp-nextjs",
+    "build": "npm run build -w @winstonfassett/webdev-gateway && npm run build -w @winstonfassett/webdev-vite && npm run build -w @winstonfassett/webdev-astro && npm run build -w @winstonfassett/webdev-next",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
-    "prepublish:check": "npm run build && npm pack --dry-run -w @winstonfassett/web-dev-mcp-gateway && npm pack --dry-run -w @winstonfassett/web-dev-mcp-vite && npm pack --dry-run -w @winstonfassett/web-dev-mcp-astro && npm pack --dry-run -w @winstonfassett/web-dev-mcp-nextjs",
-    "publish:all": "npm publish -w @winstonfassett/web-dev-mcp-gateway && npm publish -w @winstonfassett/web-dev-mcp-vite && npm publish -w @winstonfassett/web-dev-mcp-astro && npm publish -w @winstonfassett/web-dev-mcp-nextjs",
+    "prepublish:check": "npm run build && npm pack --dry-run -w @winstonfassett/webdev-gateway && npm pack --dry-run -w @winstonfassett/webdev-vite && npm pack --dry-run -w @winstonfassett/webdev-astro && npm pack --dry-run -w @winstonfassett/webdev-next",
+    "publish:all": "npm publish -w @winstonfassett/webdev-gateway && npm publish -w @winstonfassett/webdev-vite && npm publish -w @winstonfassett/webdev-astro && npm publish -w @winstonfassett/webdev-next",
     "gateway:build": "npm run build && npm --prefix apps/admin-svelte run build",
     "gateway:status": "lsof -iTCP:3333 -sTCP:LISTEN -P -n 2>/dev/null || echo 'gateway not running on 3333'",
     "gateway:stop": "kill $(lsof -tiTCP:3333 -sTCP:LISTEN) 2>/dev/null; sleep 1; echo 'stopped'",
-    "gateway:start": "nohup node packages/gateway/dist/cli.js > /tmp/web-dev-mcp-gateway.log 2>&1 & disown; sleep 1; echo 'started (logs: /tmp/web-dev-mcp-gateway.log)'",
+    "gateway:start": "nohup node packages/gateway/dist/cli.js > /tmp/webdev-gateway.log 2>&1 & disown; sleep 1; echo 'started (logs: /tmp/webdev-gateway.log)'",
     "gateway:restart": "npm run gateway:build && npm run gateway:stop && npm run gateway:start",
     "gateway:logs": "tail -f /tmp/web-dev-mcp-gateway.log"
   },

@@ -8,10 +8,10 @@
 if (
   process.env.NODE_ENV === 'development' &&
   typeof window !== 'undefined' &&
-  !(window as any).__WEB_DEV_MCP_LOADED__
+  !(window as any).__WEBDEV_LOADED__
 ) {
   const script = document.createElement('script')
-  script.src = '/__web-dev-mcp.js'
+  script.src = '/__webdev.js'
   script.async = true
   document.head.appendChild(script)
 }

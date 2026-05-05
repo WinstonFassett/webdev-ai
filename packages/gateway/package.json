@@ -1,5 +1,5 @@
 {
-  "name": "@winstonfassett/web-dev-mcp-gateway",
+  "name": "@winstonfassett/webdev-gateway",
   "version": "0.1.0",
   "description": "Universal web development MCP gateway — proxy any dev server with live browser observability for AI agents",
   "type": "module",
@@ -9,7 +9,7 @@
   "main": "dist/gateway.js",
   "types": "dist/gateway.d.ts",
   "bin": {
-    "web-dev-mcp": "dist/cli.js"
+    "webdev": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -43,12 +43,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WinstonFassett/web-dev-mcp.git",
+    "url": "git+https://github.com/WinstonFassett/webdev.git",
     "directory": "packages/gateway"
   },
-  "homepage": "https://github.com/WinstonFassett/web-dev-mcp",
+  "homepage": "https://github.com/WinstonFassett/webdev",
   "bugs": {
-    "url": "https://github.com/WinstonFassett/web-dev-mcp/issues"
+    "url": "https://github.com/WinstonFassett/webdev/issues"
   },
   "license": "MIT",
   "publishConfig": {

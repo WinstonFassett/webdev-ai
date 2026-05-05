@@ -1,7 +1,7 @@
 {
-  "name": "@winstonfassett/web-dev-mcp-vite",
+  "name": "@winstonfassett/webdev-vite",
   "version": "0.1.0",
-  "description": "Vite plugin for web-dev-mcp — live browser observability for AI agents",
+  "description": "Vite plugin for webdev — live browser observability for AI agents",
   "type": "module",
   "engines": { "node": ">=20.6.0" },
   "main": "dist/index.js",
@@ -42,21 +42,21 @@
     "mcp",
     "ai",
     "devtools",
-    "web-dev-mcp"
+    "webdev"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WinstonFassett/web-dev-mcp.git",
+    "url": "git+https://github.com/WinstonFassett/webdev.git",
     "directory": "packages/adapter-vite"
   },
-  "homepage": "https://github.com/WinstonFassett/web-dev-mcp",
-  "bugs": { "url": "https://github.com/WinstonFassett/web-dev-mcp/issues" },
+  "homepage": "https://github.com/WinstonFassett/webdev",
+  "bugs": { "url": "https://github.com/WinstonFassett/webdev/issues" },
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "@winstonfassett/web-dev-mcp-gateway": "^0.1.0",
+    "@winstonfassett/webdev-gateway": "^0.1.0",
     "vite": ">=6.0.0"
   },
   "peerDependenciesMeta": {
@@ -65,7 +65,7 @@
     }
   },
   "devDependencies": {
-    "@winstonfassett/web-dev-mcp-gateway": "file:../gateway",
+    "@winstonfassett/webdev-gateway": "file:../gateway",
     "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.0",

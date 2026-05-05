@@ -1,8 +1,8 @@
 /**
- * Shared adapter helpers for web-dev-mcp framework adapters.
+ * Shared adapter helpers for webdev framework adapters.
  * Extracted from duplicated code in Vite and Next.js adapters.
  *
- * Exported as '@winstonfassett/web-dev-mcp-gateway/helpers'
+ * Exported as '@winstonfassett/webdev-gateway/helpers'
  */
 
 import { spawn } from 'node:child_process'
@@ -78,7 +78,7 @@ export function registerWithRetry(
       registered = true
       if (timer) { clearInterval(timer); timer = null }
       _internalLogging = true
-      console.log(`  [web-dev-mcp] Registered with gateway (server: ${result.serverId}, logs: ${result.logDir})`)
+      console.log(`  [webdev] Registered with gateway (server: ${result.serverId}, logs: ${result.logDir})`)
       _internalLogging = false
       onRegistered?.(result)
     }
@@ -138,7 +138,7 @@ export async function patchConsole(gatewayUrl: string, serverId: string): Promis
       orig.apply(console, args)
       if (_internalLogging) return
       const first = args[0]
-      if (typeof first === 'string' && (first.startsWith('[web-dev-mcp]') || first.startsWith('  [web-dev-mcp]') || first.startsWith('[registry]'))) return
+      if (typeof first === 'string' && (first.startsWith('[webdev]') || first.startsWith('  [webdev]') || first.startsWith('[registry]'))) return
       send(level, args)
     }
   }
@@ -190,7 +190,7 @@ export async function connectDevEvents(
     const result = await registerWithGateway(gatewayUrl, options.registrationPayload)
     if (result) {
       _internalLogging = true
-      console.log(`  [web-dev-mcp] Re-registered with gateway (server: ${result.serverId})`)
+      console.log(`  [webdev] Re-registered with gateway (server: ${result.serverId})`)
       _internalLogging = false
       options.onReregistered?.(result)
     }
@@ -203,7 +203,7 @@ export async function connectDevEvents(
       for (const msg of queue) ws.send(msg)
       queue = []
       if (gatewayWarned) {
-        console.log(`  [web-dev-mcp] Gateway connected at ${gatewayUrl}`)
+        console.log(`  [webdev] Gateway connected at ${gatewayUrl}`)
         gatewayWarned = false
       }
       // On reconnect (not first connect), re-register with gateway
@@ -216,7 +216,7 @@ export async function connectDevEvents(
     ws.on('close', () => { ws = null; if (!closed) setTimeout(connect, 3000) })
     ws.on('error', () => {
       if (!gatewayWarned) {
-        console.warn(`  [web-dev-mcp] Gateway not running. Start it with: npx web-dev-mcp`)
+        console.warn(`  [webdev] Gateway not running. Start it with: npx webdev`)
         gatewayWarned = true
       }
     })
@@ -242,7 +242,7 @@ export async function connectDevEvents(
 
 function pidFilePath(gatewayUrl: string): string {
   const hash = createHash('md5').update(gatewayUrl).digest('hex').slice(0, 8)
-  return join(tmpdir(), `web-dev-mcp-${hash}.pid`)
+  return join(tmpdir(), `webdev-${hash}.pid`)
 }
 
 async function isGatewayRunning(gatewayUrl: string): Promise<boolean> {
@@ -267,14 +267,14 @@ export async function ensureGateway(gatewayUrl: string): Promise<void> {
 
   const startTime = Date.now()
   _internalLogging = true
-  console.log(`  [web-dev-mcp] Starting gateway on port ${port}...`)
+  console.log(`  [webdev] Starting gateway on port ${port}...`)
   _internalLogging = false
 
   // Resolve the CLI bin directly — avoids npx overhead (15-30s → ~1-2s)
   let cliBin: string
   try {
     // import.meta.resolve gives us the package entry; the CLI is at dist/cli.js
-    const pkgDir = dirname(fileURLToPath(import.meta.resolve('@winstonfassett/web-dev-mcp-gateway/package.json')))
+    const pkgDir = dirname(fileURLToPath(import.meta.resolve('@winstonfassett/webdev-gateway/package.json')))
     cliBin = join(pkgDir, 'dist', 'cli.js')
   } catch {
     // Fallback: resolve relative to this file (we're inside the gateway package)
@@ -301,13 +301,13 @@ export async function ensureGateway(gatewayUrl: string): Promise<void> {
     if (await isGatewayRunning(gatewayUrl)) {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
       _internalLogging = true
-      console.log(`  [web-dev-mcp] Gateway started in ${elapsed}s (pid: ${child.pid})`)
+      console.log(`  [webdev] Gateway started in ${elapsed}s (pid: ${child.pid})`)
       _internalLogging = false
       return
     }
   }
 
-  console.warn(`  [web-dev-mcp] Gateway did not start within 20s — continuing without it`)
+  console.warn(`  [webdev] Gateway did not start within 20s — continuing without it`)
 }
 
 /**

@@ -1,4 +1,4 @@
-# web-dev-mcp
+# webdev
 
 ![Admin UI — live log stream](screenshots/admin-v1-logs-dark.png)
 
@@ -22,7 +22,7 @@ graph LR
 In your project directory:
 
 ```bash
-npx web-dev-mcp init
+npx webdev init
 ```
 
 That detects your framework (Vite, Next.js, Astro, Storybook), wires the adapter into your config, installs the dev dependencies, and writes MCP server config for Claude / Cursor / Windsurf / VS Code.
@@ -33,7 +33,7 @@ Then start your dev server as usual (`npm run dev`). The adapter auto-starts the
 // .mcp.json (written by `init`)
 {
   "mcpServers": {
-    "web-dev-mcp": {
+    "webdev": {
       "url": "http://localhost:3333/__mcp/sse"
     }
   }
@@ -43,8 +43,8 @@ Then start your dev server as usual (`npm run dev`). The adapter auto-starts the
 If you only need MCP registration (e.g. you've already wired your config manually):
 
 ```bash
-npx web-dev-mcp register          # project-level
-npx web-dev-mcp register --global # user-level (~/.claude, ~/.cursor)
+npx webdev register          # project-level
+npx webdev register --global # user-level (~/.claude, ~/.cursor)
 ```
 
 See [getting-started.md](getting-started.md) for the full setup guide and manual install.
@@ -97,15 +97,15 @@ Pick the adapter for your framework. Each one auto-starts the gateway.
 ### Vite (incl. TanStack Start, SvelteKit dev mode)
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-vite @winstonfassett/webdev-gateway
 ```
 
 ```ts
 // vite.config.ts
-import { webDevMcp } from '@winstonfassett/web-dev-mcp-vite'
+import { webdev } from '@winstonfassett/webdev-vite'
 
 export default defineConfig({
-  plugins: [react(), webDevMcp()],
+  plugins: [react(), webdev()],
 })
 ```
 
@@ -114,43 +114,43 @@ export default defineConfig({
 ```ts
 // .storybook/main.ts
 export default {
-  addons: ['@winstonfassett/web-dev-mcp-vite/storybook'],
+  addons: ['@winstonfassett/webdev-vite/storybook'],
 }
 ```
 
 ### Next.js
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-nextjs @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-next @winstonfassett/webdev-gateway
 ```
 
 ```js
 // next.config.js
-import { withWebDevMcp } from '@winstonfassett/web-dev-mcp-nextjs'
+import { withWebdev } from '@winstonfassett/webdev-next'
 
-export default withWebDevMcp(nextConfig)
+export default withWebdev(nextConfig)
 ```
 
 For Turbopack, also add the client component to your root layout:
 
 ```tsx
 // app/layout.tsx
-import { WebDevMcpInit } from '@winstonfassett/web-dev-mcp-nextjs/init'
-// ... add <WebDevMcpInit /> as a child of <body>
+import { WebdevInit } from '@winstonfassett/webdev-next/init'
+// ... add <WebdevInit /> as a child of <body>
 ```
 
 ### Astro
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-astro @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-astro @winstonfassett/webdev-gateway
 ```
 
 ```js
 // astro.config.mjs
-import webDevMcp from '@winstonfassett/web-dev-mcp-astro'
+import webdev from '@winstonfassett/webdev-astro'
 
 export default defineConfig({
-  integrations: [webDevMcp()],
+  integrations: [webdev()],
 })
 ```
 
@@ -158,9 +158,9 @@ export default defineConfig({
 
 **Framework adapters** (recommended): Vite and Next.js adapters inject the client script and forward HMR/build events to the gateway.
 
-**Proxy plugin** (`npm install web-dev-mcp-proxy`): browse `http://localhost:3333/http://any-url/` to proxy and instrument any page. Works with any dev server or website.
+**Proxy plugin** (`npm install @winstonfassett/webdev-proxy`): browse `http://localhost:3333/http://any-url/` to proxy and instrument any page. Works with any dev server or website.
 
-**Manual**: add `<script src="http://localhost:3333/__web-dev-mcp.js"></script>` to your HTML.
+**Manual**: add `<script src="http://localhost:3333/__webdev.js"></script>` to your HTML.
 
 ## How it works
 
@@ -179,7 +179,7 @@ graph TB
 
     subgraph DEV["Your dev project"]
         SERVER["Dev server<br/>(Vite / Next / Astro / Storybook)"]
-        ADAPTER["web-dev-mcp adapter"]
+        ADAPTER["webdev adapter"]
         BROWSER["Browser tab<br/>(your app)"]
         CLIENT["Injected client<br/>(console patch + RPC)"]
     end

@@ -1,4 +1,4 @@
-// Vite adapter for web-dev-mcp
+// Vite adapter for webdev
 // Injects client code via Vite's transform hook, forwards HMR/build events to gateway
 
 import type { Plugin, HotUpdateOptions, EnvironmentModuleNode, ResolvedConfig } from 'vite'
@@ -13,7 +13,7 @@ import {
   type RegistrationPayload,
   type DevEventsHandle,
   type ConnectDevEventsOptions,
-} from '@winstonfassett/web-dev-mcp-gateway/helpers'
+} from '@winstonfassett/webdev-gateway/helpers'
 
 export interface ViteAdapterOptions {
   gateway?: string // Gateway URL, default: http://localhost:3333
@@ -21,7 +21,7 @@ export interface ViteAdapterOptions {
   key?: string     // Optional key for disambiguation (e.g. two vite configs in same dir)
 }
 
-export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
+export function webdev(options: ViteAdapterOptions = {}): Plugin {
   const gatewayUrl = options.gateway ?? 'http://localhost:3333'
   let clientSource: string | undefined
   let devEvents: DevEventsHandle | null = null
@@ -29,7 +29,7 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
   let resolvedConfig: ResolvedConfig | null = null
 
   return {
-    name: 'web-dev-mcp',
+    name: 'webdev',
     apply: 'serve',
 
     configResolved(config) {
@@ -62,10 +62,10 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
         registrationPayload: payload,
       })
 
-      // Serve gateway's bundled client.js at /__web-dev-mcp.js
+      // Serve gateway's bundled client.js at /__webdev.js
       const clientPath = resolveClientPath()
       server.middlewares.use((req: any, res: any, next: any) => {
-        if (req.url === '/__web-dev-mcp.js') {
+        if (req.url === '/__webdev.js') {
           if (!clientSource) {
             clientSource = readFileSync(clientPath, 'utf-8')
           }
@@ -80,17 +80,17 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
     transformIndexHtml() {
       // Inject meta tag via JS to ensure it works with SSR frameworks (TanStack Start, etc.)
       // that re-render <head> and may drop statically injected meta tags.
-      let initScript = `window.__WEB_DEV_MCP_ORIGIN__ = ${JSON.stringify(gatewayUrl)};`
+      let initScript = `window.__WEBDEV_ORIGIN__ = ${JSON.stringify(gatewayUrl)};`
       if (serverId) {
-        initScript += `\nwindow.__WEB_DEV_MCP_SERVER__ = ${JSON.stringify(serverId)};`
+        initScript += `\nwindow.__WEBDEV_SERVER__ = ${JSON.stringify(serverId)};`
       }
-      initScript += `\n;(function(){var m=document.createElement('meta');m.name='web-dev-mcp';m.content=${JSON.stringify(gatewayUrl)};`
+      initScript += `\n;(function(){var m=document.createElement('meta');m.name='webdev';m.content=${JSON.stringify(gatewayUrl)};`
       if (serverId) {
         initScript += `m.setAttribute('data-server-id',${JSON.stringify(serverId)});`
       }
       initScript += `document.head.appendChild(m)})()`
       // Load client script from vite's own origin (not gateway) so it works on remote devices
-      initScript += `\n;(function(){var s=document.createElement('script');s.src='/__web-dev-mcp.js';document.head.appendChild(s)})()`
+      initScript += `\n;(function(){var s=document.createElement('script');s.src='/__webdev.js';document.head.appendChild(s)})()`
 
       return [
         { tag: 'script', children: initScript, injectTo: 'head-prepend' as const },
@@ -111,11 +111,11 @@ export function webDevMcp(options: ViteAdapterOptions = {}): Plugin {
 function resolveClientPath(): string {
   // client.js is bundled in the gateway package's dist/
   try {
-    const gatewayPkg = import.meta.resolve('@winstonfassett/web-dev-mcp-gateway')
+    const gatewayPkg = import.meta.resolve('@winstonfassett/webdev-gateway')
     const gatewayDir = new URL('.', gatewayPkg).pathname
-    return join(gatewayDir, 'web-dev-mcp-client.js')
+    return join(gatewayDir, 'webdev-client.js')
   } catch {
     // Fallback for workspace/linked setups
-    return join(process.cwd(), 'node_modules', '@winstonfassett', 'web-dev-mcp-gateway', 'dist', 'web-dev-mcp-client.js')
+    return join(process.cwd(), 'node_modules', '@winstonfassett', 'webdev-gateway', 'dist', 'webdev-client.js')
   }
 }

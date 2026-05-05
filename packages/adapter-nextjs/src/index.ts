@@ -1,4 +1,4 @@
-// Next.js adapter for web-dev-mcp
+// Next.js adapter for webdev
 // Wraps next.config to inject gateway registration, console capture, build events, and rewrites
 
 import {
@@ -9,7 +9,7 @@ import {
   makeServerId,
   type DevEventsHandle,
   type RegistrationPayload,
-} from '@winstonfassett/web-dev-mcp-gateway/helpers'
+} from '@winstonfassett/webdev-gateway/helpers'
 
 interface NextConfig {
   webpack?: (config: any, options: any) => any
@@ -17,7 +17,7 @@ interface NextConfig {
   [key: string]: any
 }
 
-export interface WebDevMcpOptions {
+export interface WebdevOptions {
   gatewayUrl?: string
   enabled?: boolean
   network?: boolean
@@ -31,13 +31,13 @@ function sendBuildEvent(payload: any) {
 }
 
 /** Webpack plugin that sends build events to the gateway */
-class WebDevMcpBuildPlugin {
+class WebdevBuildPlugin {
   apply(compiler: any) {
-    compiler.hooks.compile.tap('WebDevMcpBuild', () => {
+    compiler.hooks.compile.tap('WebdevBuild', () => {
       sendBuildEvent({ type: 'build:start' })
     })
 
-    compiler.hooks.done.tap('WebDevMcpBuild', (stats: any) => {
+    compiler.hooks.done.tap('WebdevBuild', (stats: any) => {
       if (stats.hasErrors()) {
         const errors = stats.toJson({ errors: true }).errors
         const msg = errors?.[0]?.message ?? 'Build error'
@@ -50,9 +50,9 @@ class WebDevMcpBuildPlugin {
   }
 }
 
-export function withWebDevMcp(
+export function withWebdev(
   nextConfig: NextConfig = {},
-  options: WebDevMcpOptions = {}
+  options: WebdevOptions = {}
 ): NextConfig {
   const {
     gatewayUrl = 'http://localhost:3333',
@@ -65,14 +65,14 @@ export function withWebDevMcp(
   }
 
   // Stable server ID: computed from directory + type, inherited by forked workers via env
-  if (!process.env.__WEB_DEV_MCP_SERVER__) {
-    process.env.__WEB_DEV_MCP_SERVER__ = makeServerId(process.cwd(), 'nextjs', options.key)
+  if (!process.env.__WEBDEV_SERVER__) {
+    process.env.__WEBDEV_SERVER__ = makeServerId(process.cwd(), 'nextjs', options.key)
   }
-  const serverId = process.env.__WEB_DEV_MCP_SERVER__
+  const serverId = process.env.__WEBDEV_SERVER__
 
   // Guard: Next.js forks workers that re-run this code. Only register once.
-  if (!process.env.__WEB_DEV_MCP_REGISTERED__) {
-    process.env.__WEB_DEV_MCP_REGISTERED__ = '1'
+  if (!process.env.__WEBDEV_REGISTERED__) {
+    process.env.__WEBDEV_REGISTERED__ = '1'
 
     const registrationPayload: RegistrationPayload = {
       serverId,
@@ -99,8 +99,8 @@ export function withWebDevMcp(
     // Expose env vars to browser — works with both webpack and Turbopack
     env: {
       ...nextConfig.env,
-      NEXT_PUBLIC_WEB_DEV_MCP_GATEWAY: gatewayUrl,
-      NEXT_PUBLIC_WEB_DEV_MCP_SERVER: serverId,
+      NEXT_PUBLIC_WEBDEV_GATEWAY: gatewayUrl,
+      NEXT_PUBLIC_WEBDEV_SERVER: serverId,
     },
 
     webpack(config: any, webpackOptions: any) {
@@ -118,7 +118,7 @@ export function withWebDevMcp(
         config.watchOptions = { ...config.watchOptions, ignored }
 
         config.plugins = config.plugins || []
-        config.plugins.push(new WebDevMcpBuildPlugin())
+        config.plugins.push(new WebdevBuildPlugin())
       }
 
       // Inject client instrumentation in dev client bundles (webpack mode only)
@@ -130,8 +130,8 @@ export function withWebDevMcp(
 
           Object.keys(entries).forEach((key) => {
             const entry = entries[key]
-            if (Array.isArray(entry) && !entry.includes('@winstonfassett/web-dev-mcp-nextjs/instrument')) {
-              entries[key] = ['@winstonfassett/web-dev-mcp-nextjs/instrument', ...entry]
+            if (Array.isArray(entry) && !entry.includes('@winstonfassett/webdev-next/instrument')) {
+              entries[key] = ['@winstonfassett/webdev-next/instrument', ...entry]
             }
           })
 
@@ -143,9 +143,9 @@ export function withWebDevMcp(
         if (webpack && webpack.DefinePlugin) {
           config.plugins.push(
             new webpack.DefinePlugin({
-              'process.env.__WEB_DEV_MCP_GATEWAY__': JSON.stringify(gatewayUrl),
-              'process.env.__WEB_DEV_MCP_NETWORK__': JSON.stringify(network),
-              'process.env.__WEB_DEV_MCP_SERVER__': JSON.stringify(serverId),
+              'process.env.__WEBDEV_GATEWAY__': JSON.stringify(gatewayUrl),
+              'process.env.__WEBDEV_NETWORK__': JSON.stringify(network),
+              'process.env.__WEBDEV_SERVER__': JSON.stringify(serverId),
             })
           )
         }
@@ -172,7 +172,7 @@ export function withWebDevMcp(
         { source: '/__mcp/:path*', destination: `${gatewayUrl}/__mcp/:path*` },
         { source: '/__rpc', destination: `${gatewayUrl}/__rpc` },
         { source: '/__events', destination: `${gatewayUrl}/__events` },
-        { source: '/__web-dev-mcp.js', destination: `${gatewayUrl}/__web-dev-mcp.js` },
+        { source: '/__webdev.js', destination: `${gatewayUrl}/__webdev.js` },
         { source: '/__libs/:path*', destination: `${gatewayUrl}/__libs/:path*` },
         { source: '/__element-grab.js', destination: `${gatewayUrl}/__element-grab.js` },
       ]
