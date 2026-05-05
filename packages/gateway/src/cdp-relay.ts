@@ -333,11 +333,11 @@ export class CDPRelay {
 
     if (clean === '/json/version') {
       return {
-        Browser: 'web-dev-mcp/Extension-Bridge',
+        Browser: 'webdev/Extension-Bridge',
         'Protocol-Version': '1.3',
         'V8-Version': '',
         'User-Agent': '',
-        webSocketDebuggerUrl: `ws://127.0.0.1:${this.gatewayPort}/devtools/browser/web-dev-mcp`,
+        webSocketDebuggerUrl: `ws://127.0.0.1:${this.gatewayPort}/devtools/browser/webdev`,
       }
     }
 

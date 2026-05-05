@@ -1,4 +1,4 @@
-// Admin UI for web-dev-mcp gateway
+// Admin UI for webdev gateway
 // Serves built admin at /__admin and JSON API at /__admin/api
 
 import type { IncomingMessage, ServerResponse } from 'node:http'

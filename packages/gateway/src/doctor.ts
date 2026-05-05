@@ -18,7 +18,7 @@ export type DoctorOptions = {
 }
 
 export async function runDoctor(opts: DoctorOptions): Promise<void> {
-  intro(pc.cyan('web-dev-mcp doctor'))
+  intro(pc.cyan('webdev doctor'))
 
   let pass = 0
   let fail = 0
@@ -30,7 +30,7 @@ export async function runDoctor(opts: DoctorOptions): Promise<void> {
     log.success(`Gateway responding at ${pc.dim(`http://localhost:${opts.port}`)}`)
     pass++
   } else {
-    log.error(`Gateway not responding at ${pc.dim(`http://localhost:${opts.port}`)} — start it with ${pc.cyan('npm run dev')} (adapter auto-spawns) or ${pc.cyan('npx web-dev-mcp')}`)
+    log.error(`Gateway not responding at ${pc.dim(`http://localhost:${opts.port}`)} — start it with ${pc.cyan('npm run dev')} (adapter auto-spawns) or ${pc.cyan('npx webdev')}`)
     fail++
   }
 
@@ -46,7 +46,7 @@ export async function runDoctor(opts: DoctorOptions): Promise<void> {
         log.success(`${fw.name}: config wired ${pc.dim(`(${rel})`)}`)
         pass++
       } else {
-        log.error(`${fw.name}: config NOT wired ${pc.dim(`(${rel})`)} — run ${pc.cyan('npx web-dev-mcp init')}`)
+        log.error(`${fw.name}: config NOT wired ${pc.dim(`(${rel})`)} — run ${pc.cyan('npx webdev init')}`)
         fail++
       }
 
@@ -61,14 +61,14 @@ export async function runDoctor(opts: DoctorOptions): Promise<void> {
         }
       }
       if (!isPackageInstalled(fw.projectDir, GATEWAY_PKG)) {
-        log.warn(`${GATEWAY_PKG} not in ${relPath(opts.cwd, fw.projectDir) || '.'} package.json (OK if you use ${pc.cyan('npx web-dev-mcp')} — won't auto-spawn from the adapter)`)
+        log.warn(`${GATEWAY_PKG} not in ${relPath(opts.cwd, fw.projectDir) || '.'} package.json (OK if you use ${pc.cyan('npx webdev')} — won't auto-spawn from the adapter)`)
         warn++
       }
     }
   }
 
   // 3. MCP client configs — check for ANY entry pointing at our gateway URL
-  // (user may have registered under a custom key like 'my-mcp' instead of 'web-dev-mcp')
+  // (user may have registered under a custom key like 'my-mcp' instead of 'webdev')
   const gatewayUrl = `http://localhost:${opts.port}/__mcp/sse`
   const mcpRels: Array<{ path: string; serversKey: string }> = [
     { path: '.mcp.json', serversKey: 'mcpServers' },
@@ -88,7 +88,7 @@ export async function runDoctor(opts: DoctorOptions): Promise<void> {
       const matchingEntry = Object.entries(servers).find(([_k, v]) => v?.url === gatewayUrl)
       if (matchingEntry) {
         const [key] = matchingEntry
-        const keyHint = key === 'web-dev-mcp' ? '' : pc.dim(` (key: ${key})`)
+        const keyHint = key === 'webdev' ? '' : pc.dim(` (key: ${key})`)
         log.success(`MCP registered in ${pc.dim(path)}${keyHint}`)
         pass++
         anyMcpPointsHere = true
@@ -102,10 +102,10 @@ export async function runDoctor(opts: DoctorOptions): Promise<void> {
     }
   }
   if (!anyMcpFound) {
-    log.warn(`No MCP client config files found. Run ${pc.cyan('npx web-dev-mcp register')} to create them.`)
+    log.warn(`No MCP client config files found. Run ${pc.cyan('npx webdev register')} to create them.`)
     warn++
   } else if (!anyMcpPointsHere) {
-    log.error(`MCP files exist but none point to ${pc.dim(gatewayUrl)}. Run ${pc.cyan('npx web-dev-mcp register')}.`)
+    log.error(`MCP files exist but none point to ${pc.dim(gatewayUrl)}. Run ${pc.cyan('npx webdev register')}.`)
     fail++
   }
 

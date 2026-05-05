@@ -32,7 +32,7 @@ interface Writers {
 }
 
 function generateSelfSignedCert(): { cert: string; key: string } {
-  const certDir = join(homedir(), '.web-dev-mcp', 'certs')
+  const certDir = join(homedir(), '.webdev', 'certs')
   const certPath = join(certDir, 'cert.pem')
   const keyPath = join(certDir, 'key.pem')
 
@@ -70,18 +70,18 @@ export async function startGateway(options: GatewayOptions) {
   // Load bundled client script
   let clientScript: string
   try {
-    clientScript = readFileSync(join(__dirname, 'web-dev-mcp-client.js'), 'utf-8')
+    clientScript = readFileSync(join(__dirname, 'webdev-client.js'), 'utf-8')
   } catch {
-    console.error('[web-dev-mcp] Could not load web-dev-mcp-client.js bundle. Run `npm run build` first.')
+    console.error('[webdev] Could not load webdev-client.js bundle. Run `npm run build` first.')
     process.exit(1)
   }
 
-  // Optional proxy plugin — if web-dev-mcp-proxy is installed, mount it
+  // Optional proxy plugin — if @winstonfassett/webdev-proxy is installed, mount it
   let proxyMiddleware: ((req: any, res: any, next: () => void) => void) | null = null
   try {
-    const { createProxyMiddleware } = await import('web-dev-mcp-proxy' as string)
+    const { createProxyMiddleware } = await import('@winstonfassett/webdev-proxy' as string)
     proxyMiddleware = createProxyMiddleware(clientScript)
-    console.log('  [web-dev-mcp] Proxy plugin loaded')
+    console.log('  [webdev] Proxy plugin loaded')
   } catch {
     // Not installed — no proxy, that's fine
   }
@@ -162,7 +162,7 @@ export async function startGateway(options: GatewayOptions) {
     }
 
     // Serve client script
-    if (url === '/__web-dev-mcp.js' || url === '/__client.js') {
+    if (url === '/__webdev.js' || url === '/__client.js') {
       addCorsHeaders(res)
       res.writeHead(200, {
         'Content-Type': 'application/javascript',
@@ -334,7 +334,7 @@ export async function startGateway(options: GatewayOptions) {
       addCorsHeaders(res)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({
-        gateway: 'web-dev-mcp',
+        gateway: 'webdev',
         mode: registry.size() > 0 ? 'hybrid' : 'hub',
         session: session.info,
         registered_servers: registry.getAll(),
@@ -352,7 +352,7 @@ export async function startGateway(options: GatewayOptions) {
       res.end(`<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>web-dev-mcp</title>
+<title>webdev</title>
 <style>
   *{box-sizing:border-box;margin:0}
   body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0;display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -371,7 +371,7 @@ export async function startGateway(options: GatewayOptions) {
 </style>
 </head><body>
 <div class="wrap">
-  <h1>web-dev-mcp</h1>
+  <h1>webdev</h1>
   <div class="section">
     <a class="link" href="/__admin">Admin Dashboard &rarr;</a>
   </div>${proxyMiddleware ? `
@@ -387,7 +387,7 @@ export async function startGateway(options: GatewayOptions) {
       return
     }
 
-    // Try optional proxy plugin (npm install web-dev-mcp-proxy)
+    // Try optional proxy plugin (npm install @winstonfassett/webdev-proxy)
     if (proxyMiddleware) {
       proxyMiddleware(req, res, () => {
         res.writeHead(404, { 'Content-Type': 'text/plain' })
@@ -509,7 +509,7 @@ export async function startGateway(options: GatewayOptions) {
     const server = serverId ? registry.get(serverId) : null
     const projectDir = server?.directory ?? null
 
-    console.log(`[web-dev-mcp] Dev adapter connected${serverId ? ` (server: ${serverId})` : ''}`)
+    console.log(`[webdev] Dev adapter connected${serverId ? ` (server: ${serverId})` : ''}`)
 
     ws.on('message', (data) => {
       try {
@@ -527,7 +527,7 @@ export async function startGateway(options: GatewayOptions) {
     })
 
     ws.on('close', () => {
-      console.log(`[web-dev-mcp] Dev adapter disconnected${serverId ? ` (server: ${serverId})` : ''}`)
+      console.log(`[webdev] Dev adapter disconnected${serverId ? ` (server: ${serverId})` : ''}`)
     })
   })
 
@@ -542,7 +542,7 @@ export async function startGateway(options: GatewayOptions) {
       }
       console.error('')
       console.error(`  Either stop that process, or run with a different port:`)
-      console.error(`    npx web-dev-mcp -p <other-port>`)
+      console.error(`    npx webdev -p <other-port>`)
       console.error('')
       process.exit(1)
     }
@@ -552,7 +552,7 @@ export async function startGateway(options: GatewayOptions) {
   server.listen(port, () => {
     const proto = useHttps ? 'https' : 'http'
     console.log('')
-    console.log(`  web-dev-mcp gateway`)
+    console.log(`  webdev gateway`)
     console.log(`  ───────────────────────────────`)
     console.log(`  Listen:  ${proto}://localhost:${port}`)
     console.log(`  MCP:     ${proto}://localhost:${port}${mcpPath}/sse`)

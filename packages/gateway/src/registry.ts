@@ -43,7 +43,7 @@ export interface RegisteredServer {
   name?: string           // Optional friendly name for display
   endpoints: Endpoint[]   // Live processes serving this server (one per port)
   logPaths: Record<string, string>  // Channel → file path (always populated)
-  logDir: string          // Absolute path to project's .web-dev-mcp/
+  logDir: string          // Absolute path to project's .webdev/
 }
 
 /** Create per-project log directory and return channel file paths */
@@ -51,7 +51,7 @@ export function initProjectLogDir(
   directory: string,
   channels: string[] = ['console', 'errors', 'dev-events', 'server-console'],
 ): { logDir: string; logPaths: Record<string, string> } {
-  const logDir = join(directory, '.web-dev-mcp')
+  const logDir = join(directory, '.webdev')
   mkdirSync(logDir, { recursive: true })
 
   const logPaths: Record<string, string> = {}

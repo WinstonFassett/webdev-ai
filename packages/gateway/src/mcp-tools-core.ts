@@ -107,7 +107,7 @@ export function registerCoreTools(mcp: McpServer, ctx: McpContext) {
       if (!server) {
         const all = registry.getAll()
         if (all.length === 0) {
-          return errResult(new Error('No dev servers registered. Start a dev server with the web-dev-mcp adapter.'))
+          return errResult(new Error('No dev servers registered. Start a dev server with the webdev adapter.'))
         }
         if (all.length > 1 && !args.project) {
           return jsonResult({

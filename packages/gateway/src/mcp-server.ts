@@ -27,7 +27,7 @@ type Toolset = 'core' | 'full'
 
 function createMcpServerInstance(ctx: McpContext, toolset: Toolset = 'core'): McpServer {
   const mcp = new McpServer(
-    { name: 'web-dev-mcp', version: '0.1.0' },
+    { name: 'webdev', version: '0.1.0' },
     { capabilities: { tools: {} } },
   )
 
@@ -88,9 +88,9 @@ async function resolveProjectFromRoots(mcp: McpServer, ctx: McpContext): Promise
   if (matches.size === 1) {
     const dir = matches.values().next().value!
     ctx.currentProject = dir
-    console.log(`[web-dev-mcp] Auto-resolved project from roots: ${dir}`)
+    console.log(`[webdev] Auto-resolved project from roots: ${dir}`)
   } else if (matches.size > 1) {
-    console.log(`[web-dev-mcp] Multiple projects match roots (${matches.size}), not auto-resolving`)
+    console.log(`[webdev] Multiple projects match roots (${matches.size}), not auto-resolving`)
   }
 }
 
@@ -128,7 +128,7 @@ export function createMcpMiddleware(
           })
         }
       }).catch((err) => {
-        console.error('[web-dev-mcp] SSE connection error:', err)
+        console.error('[webdev] SSE connection error:', err)
       })
       return
     }
@@ -145,7 +145,7 @@ export function createMcpMiddleware(
 
       const { transport } = connections.get(sessionId)!
       transport.handlePostMessage(req, res).catch((err) => {
-        console.error('[web-dev-mcp] Message handling error:', err)
+        console.error('[webdev] Message handling error:', err)
         if (!res.headersSent) {
           res.statusCode = 500
           res.end(JSON.stringify({ error: 'Internal error' }))

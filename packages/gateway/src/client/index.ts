@@ -1,6 +1,6 @@
-// Browser client for web-dev-mcp gateway
-// Injected into proxied HTML pages via <script src="/__web-dev-mcp.js">
-// Or loaded via Vite adapter with __WEB_DEV_MCP_ORIGIN__ set for cross-origin mode
+// Browser client for webdev gateway
+// Injected into proxied HTML pages via <script src="/__webdev.js">
+// Or loaded via Vite adapter with __WEBDEV_ORIGIN__ set for cross-origin mode
 //
 // Patches console.*, error handlers, fetch/XHR
 // Sends events to gateway via WebSocket, handles commands via JSON protocol
@@ -8,14 +8,14 @@
 import { resolveElementSource, resolveElementSourceAsync, formatSource } from './source-resolver.js'
 
 ;(function() {
-  if ((window as any).__WEB_DEV_MCP_LOADED__) return
-  ;(window as any).__WEB_DEV_MCP_LOADED__ = true
+  if ((window as any).__WEBDEV_LOADED__) return
+  ;(window as any).__WEBDEV_LOADED__ = true
 
   // Cross-origin support: when loaded via framework adapter, gateway is on a different origin.
   // If the injected gateway URL points to localhost but the page was loaded from a different
   // host (e.g. phone accessing via tailnet/LAN IP), rewrite the gateway host to match the
   // page's host so the browser can reach the gateway.
-  let gatewayOrigin = (window as any).__WEB_DEV_MCP_ORIGIN__ || window.location.origin
+  let gatewayOrigin = (window as any).__WEBDEV_ORIGIN__ || window.location.origin
   if (gatewayOrigin && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     try {
       const gw = new URL(gatewayOrigin)
@@ -723,7 +723,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
 
   // --- Tab title marker ---
   // Prepend 👀 to document.title so the user can see at a glance which tabs are
-  // wired up to web-dev-mcp and thus controllable by the agent. Re-applies on
+  // wired up to webdev and thus controllable by the agent. Re-applies on
   // app-driven title changes (React Helmet, Next.js metadata, SPA routing).
   const TITLE_MARKER = '\u{1F440} '
   let titleObserver: MutationObserver | null = null
@@ -761,7 +761,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
       // Announce browser ID + page info (report un-marked title for clean display)
       cmdWs!.send(JSON.stringify({ type: 'init', browserId, url: location.href, title: reportedTitle() }))
       installTitleMarker()
-      originalConsole.log('[web-dev-mcp] Command channel connected')
+      originalConsole.log('[webdev] Command channel connected')
     }
 
     cmdWs.onmessage = async (event) => {
@@ -801,7 +801,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
 
   connectCmd()
 
-  originalConsole.log(`[web-dev-mcp] Client loaded  browser=${browserId.slice(0, 8)}  server=${serverId || 'none'}  gateway=${gatewayOrigin}`)
+  originalConsole.log(`[webdev] Client loaded  browser=${browserId.slice(0, 8)}  server=${serverId || 'none'}  gateway=${gatewayOrigin}`)
 
   // Load element-grab overlay (lazy, on idle)
   const loadElementGrab = () => {

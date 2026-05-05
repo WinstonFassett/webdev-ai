@@ -8,7 +8,7 @@ import { runDoctor } from './doctor.js'
 const program = new Command()
 
 program
-  .name('web-dev-mcp')
+  .name('npx webdev')
   .description('MCP gateway for web development — proxy any dev server with live browser observability for AI agents')
 
 program
@@ -52,7 +52,7 @@ program
 
 program
   .command('init')
-  .description('Install web-dev-mcp into the current project (detect framework, wire config, install deps, register MCP)')
+  .description('Install webdev into the current project (detect framework, wire config, install deps, register MCP)')
   .option('--cwd <dir>', 'Project directory (default: current)', process.cwd())
   .option('-p, --port <port>', 'Gateway port to register with MCP clients (default: 3333)', (v) => parseInt(v, 10), 3333)
   .option('--skip-install', 'Skip npm install of adapter + gateway packages')

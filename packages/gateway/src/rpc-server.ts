@@ -231,7 +231,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
           conn.browserId = msg.browserId
           if (msg.url) conn.url = msg.url
           if (msg.title) conn.title = msg.title
-          const parts = [`[web-dev-mcp] Browser ${msg.browserId.slice(0, 8)}`]
+          const parts = [`[webdev] Browser ${msg.browserId.slice(0, 8)}`]
           if (msg.title) parts.push(`"${msg.title}"`)
           if (msg.url) parts.push(msg.url)
           if (serverId) parts.push(`server=${serverId}`)
@@ -244,7 +244,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
     })
 
     const serverInfo = serverId ? ` for server ${serverId}` : ''
-    console.log(`[web-dev-mcp] Browser connected (${connId})${serverInfo}`)
+    console.log(`[webdev] Browser connected (${connId})${serverInfo}`)
     for (const cb of browserEventListeners) cb('connect', { connId, browserId: conn.browserId, serverId })
 
     ws.on('close', () => {
@@ -259,7 +259,7 @@ export function setupRpcWebSocket(httpServer: { on(event: string, listener: (...
       browsers.delete(connId)
       const idx = connectionOrder.indexOf(connId)
       if (idx >= 0) connectionOrder.splice(idx, 1)
-      console.log(`[web-dev-mcp] Browser disconnected (${connId})`)
+      console.log(`[webdev] Browser disconnected (${connId})`)
       for (const cb of browserEventListeners) cb('disconnect', { connId, browserId: bid, serverId })
     })
   })

@@ -81,7 +81,7 @@ function upsertMcpServer(filePath: string, serversKey: string, mcpUrl: string, r
     // Fresh file: write a minimal well-formed object with our entry.
     const indent = ' '.repeat(formattingOptions.tabSize ?? 2)
     const eol = formattingOptions.eol ?? '\n'
-    updated = `{${eol}${indent}"${serversKey}": {${eol}${indent}${indent}"web-dev-mcp": ${JSON.stringify(serverEntry)}${eol}${indent}}${eol}}${eol}`
+    updated = `{${eol}${indent}"${serversKey}": {${eol}${indent}${indent}"webdev": ${JSON.stringify(serverEntry)}${eol}${indent}}${eol}}${eol}`
   } else {
     // Existing file: precise edit via jsonc-parser. Only the targeted key changes;
     // comments, formatting, key order everywhere else are preserved byte-for-byte.
@@ -90,12 +90,12 @@ function upsertMcpServer(filePath: string, serversKey: string, mcpUrl: string, r
       tree.children?.some((c) => c.type === 'property' && c.children?.[0]?.value === serversKey)
 
     if (!hasServersKey) {
-      // Parent missing: insert the whole `serversKey: { 'web-dev-mcp': {...} }` block in one edit.
-      const edits = modify(original, [serversKey], { 'web-dev-mcp': serverEntry }, { formattingOptions })
+      // Parent missing: insert the whole `serversKey: { 'webdev': {...} }` block in one edit.
+      const edits = modify(original, [serversKey], { 'webdev': serverEntry }, { formattingOptions })
       updated = applyEdits(original, edits)
     } else {
       // Parent exists: just upsert our key. Replaces only the value if already present.
-      const edits = modify(original, [serversKey, 'web-dev-mcp'], serverEntry, { formattingOptions })
+      const edits = modify(original, [serversKey, 'webdev'], serverEntry, { formattingOptions })
       updated = applyEdits(original, edits)
     }
   }
@@ -126,8 +126,8 @@ export function autoRegister(cwd: string, mcpUrl: string, reporter?: AutoRegiste
     }
   }
 
-  // Ensure .web-dev-mcp is gitignored
-  ensureGitignore(cwd, '.web-dev-mcp')
+  // Ensure .webdev is gitignored
+  ensureGitignore(cwd, '.webdev')
 
   return registered
 }
