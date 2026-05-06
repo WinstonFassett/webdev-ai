@@ -1,9 +1,9 @@
 ---
-name: web-dev-mcp-storybook
+name: webdev-storybook
 description: Storybook-specific patterns for web-dev-mcp. Use when working with Storybook components — navigating stories, TDD per-component, visual testing across variants, interacting with rendered components in the preview iframe.
 ---
 
-# web-dev-mcp-storybook
+# webdev-storybook
 
 Extends web-dev-mcp with Storybook-specific workflows. Requires the `web-dev-mcp` skill for core tools (`eval_js`, `get_diagnostics`, `clear`, etc.).
 
@@ -134,14 +134,14 @@ In `.storybook/main.ts`:
 
 ```ts
 export default {
-  addons: ['web-dev-mcp-gateway/storybook'],
+  addons: ['webdev-gateway/storybook'],
   framework: '@storybook/react-vite',
 }
 ```
 
 Start gateway + storybook:
 ```bash
-npx web-dev-mcp-gateway          # terminal 1
+npx webdev-gateway          # terminal 1
 npm run storybook                 # terminal 2
 ```
 

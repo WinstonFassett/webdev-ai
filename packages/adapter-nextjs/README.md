@@ -1,11 +1,11 @@
-# @winstonfassett/web-dev-mcp-nextjs
+# @winstonfassett/webdev-nextjs
 
 Next.js adapter for [web-dev-mcp](https://github.com/WinstonFassett/web-dev-mcp) — live browser observability for AI agents during development.
 
 ## Install
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-nextjs @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-nextjs @winstonfassett/webdev-gateway
 ```
 
 ## Webpack mode (Next.js 14+)
@@ -14,7 +14,7 @@ Fully automatic — client instrumentation is injected via webpack entry.
 
 ```js
 // next.config.js
-import { withWebDevMcp } from '@winstonfassett/web-dev-mcp-nextjs'
+import { withWebDevMcp } from '@winstonfassett/webdev-nextjs'
 
 export default withWebDevMcp({
   // your Next.js config
@@ -31,7 +31,7 @@ Turbopack doesn't support webpack entry injection, so add the client component t
 
 ```js
 // next.config.js
-import { withWebDevMcp } from '@winstonfassett/web-dev-mcp-nextjs'
+import { withWebDevMcp } from '@winstonfassett/webdev-nextjs'
 
 export default withWebDevMcp({
   turbopack: {},
@@ -40,7 +40,7 @@ export default withWebDevMcp({
 
 ```tsx
 // app/layout.tsx
-import { WebDevMcpInit } from '@winstonfassett/web-dev-mcp-nextjs/init'
+import { WebDevMcpInit } from '@winstonfassett/webdev-nextjs/init'
 
 export default function RootLayout({ children }) {
   return (

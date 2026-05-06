@@ -1,4 +1,4 @@
-# @winstonfassett/web-dev-mcp-gateway
+# @winstonfassett/webdev-gateway
 
 Universal gateway — MCP server + JSON command routing between agents and browsers.
 Framework adapters are in separate packages (`adapter-vite`, `adapter-nextjs`).
@@ -10,7 +10,7 @@ Shared adapter helpers exported at `./helpers` subpath.
 npm run build   # tsc && node build-client.mjs
 ```
 
-`build-client.mjs` bundles `src/client/index.ts` into `dist/web-dev-mcp-client.js` (~60KB minified) using esbuild. This is the browser script injected into pages, served at `/__web-dev-mcp.js`.
+`build-client.mjs` bundles `src/client/index.ts` into `dist/webdev-client.js` (~60KB minified) using esbuild. This is the browser script injected into pages, served at `/__web-dev-mcp.js`.
 
 ## Non-obvious
 

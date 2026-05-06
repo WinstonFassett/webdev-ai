@@ -18,7 +18,7 @@ graph TB
     end
 
     subgraph "Browser Page"
-        CLIENT["web-dev-mcp-client.js<br/>browser.* helpers<br/>command handlers"]
+        CLIENT["webdev-client.js<br/>browser.* helpers<br/>command handlers"]
         PAGE["Page JS context<br/>document, window, DOM"]
     end
 
@@ -161,7 +161,7 @@ This means any CDP-powered feature (a11y tree, network interception, etc.) requi
 ```mermaid
 graph TB
     subgraph "Browser Page"
-        CLIENT["web-dev-mcp-client.js"]
+        CLIENT["webdev-client.js"]
         PAGE["Page JS context"]
         BCDP["browser.cdp()<br/>PROPOSED"]
     end

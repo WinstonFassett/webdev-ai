@@ -121,7 +121,7 @@ graph LR
     end
 
     subgraph "Browser Pages"
-        CLIENT["web-dev-mcp-client.js"]
+        CLIENT["webdev-client.js"]
     end
 
     subgraph "AI Agents"
@@ -198,7 +198,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Page as Browser Page
-    participant Client as web-dev-mcp-client.js
+    participant Client as webdev-client.js
     participant EventsWS as /__events WS
     participant RpcWS as /__rpc WS
     participant Gateway

@@ -1,4 +1,4 @@
-# @winstonfassett/web-dev-mcp-gateway
+# @winstonfassett/webdev-gateway
 
 Universal MCP gateway for web development. Give AI agents live browser observability during development — console logs, errors, network requests, DOM queries, screenshots, and JS evaluation.
 
@@ -25,9 +25,9 @@ For deeper integration (auto-start, build events, HMR status), use a framework a
 
 | Framework | Package | Setup |
 |-----------|---------|-------|
-| Vite | [`@winstonfassett/web-dev-mcp-vite`](https://www.npmjs.com/package/@winstonfassett/web-dev-mcp-vite) | 2-line plugin |
-| Storybook | [`@winstonfassett/web-dev-mcp-vite`](https://www.npmjs.com/package/@winstonfassett/web-dev-mcp-vite) | 1-line addon |
-| Next.js | [`@winstonfassett/web-dev-mcp-nextjs`](https://www.npmjs.com/package/@winstonfassett/web-dev-mcp-nextjs) | 1-line config wrapper |
+| Vite | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 2-line plugin |
+| Storybook | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 1-line addon |
+| Next.js | [`@winstonfassett/webdev-nextjs`](https://www.npmjs.com/package/@winstonfassett/webdev-nextjs) | 1-line config wrapper |
 
 Adapters auto-start the gateway — no separate terminal needed.
 

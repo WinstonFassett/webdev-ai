@@ -1,18 +1,18 @@
-# @winstonfassett/web-dev-mcp-vite
+# @winstonfassett/webdev-vite
 
 Vite plugin for [web-dev-mcp](https://github.com/WinstonFassett/web-dev-mcp) — live browser observability for AI agents during development.
 
 ## Install
 
 ```bash
-npm install -D @winstonfassett/web-dev-mcp-vite @winstonfassett/web-dev-mcp-gateway
+npm install -D @winstonfassett/webdev-vite @winstonfassett/webdev-gateway
 ```
 
 ## Vite
 
 ```ts
 // vite.config.ts
-import { webDevMcp } from '@winstonfassett/web-dev-mcp-vite'
+import { webDevMcp } from '@winstonfassett/webdev-vite'
 
 export default defineConfig({
   plugins: [webDevMcp()],
@@ -28,7 +28,7 @@ MCP endpoint: `http://localhost:3333/__mcp/sse`
 ```ts
 // .storybook/main.ts
 export default {
-  addons: ['@winstonfassett/web-dev-mcp-vite/storybook'],
+  addons: ['@winstonfassett/webdev-vite/storybook'],
 }
 ```
 

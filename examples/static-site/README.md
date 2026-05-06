@@ -6,8 +6,8 @@ Plain HTML/JS — no framework, no bundler. Uses the gateway proxy to instrument
 
 ```bash
 # Terminal 1: start gateway (with proxy plugin)
-npm install web-dev-mcp-proxy  # once
-npx web-dev-mcp-gateway
+npm install webdev-proxy  # once
+npx webdev-gateway
 
 # Terminal 2: serve static files
 npx serve examples/static-site -p 8080
