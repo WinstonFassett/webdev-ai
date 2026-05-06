@@ -2,7 +2,7 @@
 
 type Theme = 'light' | 'dark'
 
-const STORAGE_KEY = 'web-dev-mcp-theme'
+const STORAGE_KEY = 'webdev-theme'
 
 function getSystemTheme(): Theme {
   return 'dark'

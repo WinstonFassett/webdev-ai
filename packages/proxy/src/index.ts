@@ -1,8 +1,8 @@
-// Dynamic proxy middleware for web-dev-mcp-gateway
+// Dynamic proxy middleware for webdev-gateway
 // Proxies any URL with client.js injection for MCP instrumentation
 //
 // Usage with gateway:
-//   import { createProxyMiddleware } from 'web-dev-mcp-proxy'
+//   import { createProxyMiddleware } from '@winstonfassett/webdev-proxy'
 //   server.middlewares.use(createProxyMiddleware(clientScript))
 //
 // Then browse: http://localhost:3333/http://localhost:3000/page
@@ -56,7 +56,7 @@ export function createProxyMiddleware(clientScript: string) {
         }
         let html = buffer.toString('utf-8')
         const basePath = '/' + targetUrl.origin + targetUrl.pathname.replace(/\/[^/]*$/, '/')
-        const injection = `<base href="${basePath}"><script src="/__web-dev-mcp.js"></script>`
+        const injection = `<base href="${basePath}"><script src="/__webdev.js"></script>`
         if (html.includes('</head>')) html = html.replace('</head>', injection + '</head>')
         else if (html.includes('<head>')) html = html.replace('<head>', '<head>' + injection)
         else if (html.includes('</body>')) html = html.replace('</body>', injection + '</body>')

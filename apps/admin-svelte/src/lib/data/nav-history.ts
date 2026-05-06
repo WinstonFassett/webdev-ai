@@ -1,6 +1,6 @@
 /** Navigation history — tracks visited routes in localStorage for Cmd+K recents */
 
-const STORAGE_KEY = 'web-dev-mcp-nav-history'
+const STORAGE_KEY = 'webdev-nav-history'
 const MAX_ENTRIES = 20
 
 function load(): string[] {

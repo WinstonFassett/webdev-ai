@@ -29,7 +29,7 @@ import { resolveElementSource, resolveElementSourceAsync, formatSource } from '.
   const gatewayWsProtocol = gatewayOrigin.startsWith('https') ? 'wss:' : 'ws:'
 
   // Sticky browser ID (survives page reload within session)
-  const BROWSER_ID_KEY = '__web_dev_mcp_browser_id__'
+  const BROWSER_ID_KEY = '__webdev_browser_id__'
   let browserId = sessionStorage.getItem(BROWSER_ID_KEY)
   if (!browserId) {
     browserId = Math.random().toString(36).slice(2) + Date.now().toString(36)

@@ -225,7 +225,7 @@ const handlePromptSubmit = async (promptText?: string) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         payload: { card, timestamp: Date.now(), url: window.location.href },
-        browserId: sessionStorage.getItem('__web_dev_mcp_browser_id__'),
+        browserId: sessionStorage.getItem('__webdev_browser_id__'),
       }),
     })
   } catch {}
@@ -328,7 +328,7 @@ init()
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           payload: { card, timestamp: Date.now(), url: window.location.href },
-          browserId: sessionStorage.getItem('__web_dev_mcp_browser_id__'),
+          browserId: sessionStorage.getItem('__webdev_browser_id__'),
         }),
       })
     } catch {}

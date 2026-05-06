@@ -100,7 +100,7 @@
     </div>
   {:else}
     <div class="text-center py-12 text-dim text-sm">
-      No projects connected. Start a dev server with the web-dev-mcp adapter.
+      No projects connected. Start a dev server with the webdev adapter.
     </div>
   {/if}
   </div>
