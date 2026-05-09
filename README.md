@@ -217,6 +217,21 @@ The injected client script:
 
 When the browser extension is installed, the gateway upgrades the same `browser_*` tools to Playwright via CDP — pixel-perfect screenshots and reliable locators, transparent to the agent.
 
+## Examples
+
+See the [`examples/`](https://github.com/WinstonFassett/webdev/tree/main/examples) directory for working setups:
+
+- **vite-app** — Basic Vite + React with webdev adapter
+- **tanstack-start** — TanStack Start (Vite-based) with element-source integration
+- **astro-site** — Astro integration with webdev
+- **nextjs-turbopack** — Next.js 15+ with Turbopack and WebdevInit component
+- **nextjs-webpack** — Next.js 14 with webpack mode
+- **storybook-app** — Storybook with webdev addon
+- **static-site** — Plain HTML with manual script tag
+- **admin-svelte** — Svelte admin UI (gateway's built-in dashboard)
+
+Each example demonstrates a different framework or integration pattern.
+
 ## License
 
 MIT

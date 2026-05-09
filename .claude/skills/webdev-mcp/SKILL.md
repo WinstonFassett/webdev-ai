@@ -7,6 +7,16 @@ description: Live USER browser observability and control for frontend developmen
 
 Controls an already-open browser tab during development. MCP server at `/__mcp/sse`.
 
+## Installation
+
+Before using this skill, install webdev in your project:
+
+```bash
+npx webdev init
+```
+
+This detects your framework, wires the adapter, installs dependencies, and registers the MCP server with your agent. See [getting-started.md](https://github.com/WinstonFassett/webdev/blob/main/getting-started.md) for manual setup options.
+
 ## First call: set project context
 
 **Always call `set_project` with your working directory as the first action:**
@@ -168,4 +178,3 @@ Streams `event: log`, `event: browser_connect`, `event: browser_disconnect`.
 - `browser.screenshot()` returns JSON with base64 data, not MCP image content type.
 - `state` persists within a browser session. Page reload clears it. Store refs that survive HMR, but re-query after full navigation.
 
-See [RECIPES.md](RECIPES.md) for more patterns.
