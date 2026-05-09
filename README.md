@@ -1,6 +1,6 @@
 # webdev
 
-![Admin UI — live log stream](screenshots/admin-populated-logs-dark.png)
+![Admin UI — live log stream](screenshots/admin-logs-interesting.png)
 
 A dev sidecar that gives AI agents live access to your browser during development. The agent sees what you see — console logs, DOM, screenshots, form state — through your existing browser tab, with your auth, your state, your HMR.
 
@@ -168,7 +168,7 @@ export default defineConfig({
 
 ## How it works
 
-![Admin UI — connected browsers](screenshots/admin-populated-browsers-dark.png)
+![Admin UI — connected browsers](screenshots/admin-gateway-multi-browsers.png)
 
 Three actors, one local gateway holding them together.
 
