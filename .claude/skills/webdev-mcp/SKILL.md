@@ -1,9 +1,10 @@
 ---
-name: webdev-mcp
+name: webdev
+
 description: Live USER browser observability and control for frontend development. Use when testing UI changes, debugging console errors, checking HMR status, taking screenshots, clicking elements, filling forms, or reading page content during local development. Does not replace playwright or webapp-testing skill. This is for pairing and requires user participation.
 ---
 
-# webdev-mcp
+# webdev
 
 Controls an already-open browser tab during development. MCP server at `/__mcp/sse`.
 
@@ -157,11 +158,11 @@ return JSON.stringify(state.store.getState())
 
 **Tail NDJSON files** (coding agents with terminal):
 ```bash
-tail -f .webdev-mcp/console.ndjson              # all console events
-tail -f .webdev-mcp/console.ndjson | jq .        # pretty-print
-tail -f .webdev-mcp/errors.ndjson                # errors only
+tail -f .webdev/console.ndjson              # all console events
+tail -f .webdev/console.ndjson | jq .        # pretty-print
+tail -f .webdev/errors.ndjson                # errors only
 ```
-Log paths are in `.webdev-mcp/` (gateway) or `.vite-mcp/` (vite standalone). Each line is `{"id":N,"ts":N,"channel":"...","payload":{...,"browserId":"..."}}`.
+Log paths are in `.webdev/` (gateway) or `.vite-mcp/` (vite standalone). Each line is `{"id":N,"ts":N,"channel":"...","payload":{...,"browserId":"..."}}`.
 
 **SSE stream** (dashboards, web UIs):
 ```

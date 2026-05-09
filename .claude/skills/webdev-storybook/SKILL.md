@@ -1,11 +1,11 @@
 ---
 name: webdev-storybook
-description: Storybook-specific patterns for webdev-mcp. Use when working with Storybook components — navigating stories, TDD per-component, visual testing across variants, interacting with rendered components in the preview iframe.
+description: Storybook-specific patterns for webdev. Use when working with Storybook components — navigating stories, TDD per-component, visual testing across variants, interacting with rendered components in the preview iframe.
 ---
 
 # webdev-storybook
 
-Extends webdev-mcp with Storybook-specific workflows. Requires the `webdev-mcp` skill for core tools (`eval_js`, `get_diagnostics`, `clear`, etc.).
+Extends webdev with Storybook-specific workflows. Requires the `webdev` skill for core tools (`eval_js`, `get_diagnostics`, `clear`, etc.).
 
 ## Detecting Storybook
 
@@ -56,7 +56,7 @@ Story IDs are derived from title/name, lowercased and kebab-cased:
 
 ## TDD in Storybook
 
-Storybook gives you per-component isolation. The test-fix loop is the same as webdev-mcp but scoped to a single component:
+Storybook gives you per-component isolation. The test-fix loop is the same as webdev but scoped to a single component:
 
 ```
 clear
