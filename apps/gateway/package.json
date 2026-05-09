@@ -32,7 +32,7 @@
     "build": "tsc && node build-client.mjs",
     "build:client": "node build-client.mjs",
     "dev": "tsc --watch",
-    "test": "node dist/cli.js"
+    "test": "node smoke-exports.mjs"
   },
   "keywords": [
     "mcp",
