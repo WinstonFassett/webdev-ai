@@ -86,6 +86,10 @@ eval_js: return state.heading.getAttribute('class')
 eval_js: ["browser.click('text=Submit')", "return document.querySelector('.toast').textContent"]
 ```
 
+**Element grabber** — Hold `Cmd+Shift+C` in your browser to activate, then hover and click any element to get its component name, source location, and CSS selector. The selection is pushed to the gateway and available via the `get_element_context` MCP tool.
+
+![Element grabber dialog](screenshots/element-grabber-dialog.png)
+
 **`set_project`** / **`list_projects`** / **`list_browsers`** — multi-project management.
 
 Full tools available at `/__mcp/sse?tools=full` (23 tools including click, fill, screenshot, navigate, query_dom, etc. as individual tools).
