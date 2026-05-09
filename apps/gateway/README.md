@@ -13,7 +13,7 @@ Works with **any** HTTP dev server: Next.js, Vite, Remix, Rails, Django, static 
 npm run dev  # → localhost:3000
 
 # Start the gateway
-npx webdev-mcp --target http://localhost:3000
+npx webdev --target http://localhost:3000
 
 # Browse http://localhost:3333 (proxied + instrumented)
 # MCP endpoint: http://localhost:3333/__mcp/sse
@@ -27,7 +27,7 @@ For deeper integration (auto-start, build events, HMR status), use a framework a
 |-----------|---------|-------|
 | Vite | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 2-line plugin |
 | Storybook | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 1-line addon |
-| Next.js | [`@winstonfassett/webdev-nextjs`](https://www.npmjs.com/package/@winstonfassett/webdev-nextjs) | 1-line config wrapper |
+| Next.js | [`@winstonfassett/webdev-next`](https://www.npmjs.com/package/@winstonfassett/webdev-next) | 1-line config wrapper |
 
 Adapters auto-start the gateway — no separate terminal needed.
 
@@ -63,7 +63,7 @@ Full toolset (23 tools): `/__mcp/sse?tools=full`
 ## CLI
 
 ```
-npx webdev-mcp [options]
+npx webdev [options]
 
 Options:
   --target, -t <url>     Dev server URL to proxy

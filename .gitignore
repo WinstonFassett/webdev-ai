@@ -11,6 +11,11 @@ dist/
 .webdev/
 .playwright-mcp/
 
+# Framework build outputs
+.astro/
+.tanstack/
+.turbo/
+
 # IDE
 .vscode/settings.json
 

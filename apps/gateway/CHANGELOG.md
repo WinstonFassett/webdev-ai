@@ -4,8 +4,8 @@
 
 First stable release after the `0.1.0-alpha.0` line.
 
-- `npx webdev-mcp init` — one-command installer that detects framework, wires config, installs adapters, and registers MCP clients (`.mcp.json`, `.cursor/`, `.windsurf/`, `.vscode/`).
-- `npx webdev-mcp register` — standalone MCP registration subcommand.
+- `npx webdev init` — one-command installer that detects framework, wires config, installs adapters, and registers MCP clients (`.mcp.json`, `.cursor/`, `.windsurf/`, `.vscode/`).
+- `npx webdev register` — standalone MCP registration subcommand.
 - Server-side log clear, SPA fallback, and server lifecycle events.
 - Scope-aware `clearLogs` with per-browser checkpoints.
 - Admin UI improvements: persistent log clears, multi-select channel picker, sticky source header, dark-mode toggle, REPL with command history.

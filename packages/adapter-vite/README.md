@@ -1,6 +1,6 @@
 # @winstonfassett/webdev-vite
 
-Vite plugin for [webdev-mcp](https://github.com/WinstonFassett/webdev-mcp) — live browser observability for AI agents during development.
+Vite plugin for [webdev](https://github.com/WinstonFassett/webdev) — live browser observability for AI agents during development.
 
 ## Install
 
@@ -12,10 +12,10 @@ npm install -D @winstonfassett/webdev-vite @winstonfassett/webdev-gateway
 
 ```ts
 // vite.config.ts
-import { webDevMcp } from '@winstonfassett/webdev-vite'
+import { webdev } from '@winstonfassett/webdev-vite'
 
 export default defineConfig({
-  plugins: [webDevMcp()],
+  plugins: [webdev()],
 })
 ```
 
@@ -35,7 +35,7 @@ export default {
 ## Options
 
 ```ts
-webDevMcp({
+webdev({
   gateway: 'http://localhost:3333',  // Gateway URL (default)
   serverType: 'vite',                // 'vite' | 'storybook' | 'generic'
 })

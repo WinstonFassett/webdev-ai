@@ -1,4 +1,4 @@
-# webdev-mcp Gateway Architecture
+# webdev Gateway Architecture
 
 ## Entity Model
 
