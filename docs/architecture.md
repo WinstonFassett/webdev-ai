@@ -1,4 +1,4 @@
-# web-dev-mcp Gateway Architecture
+# webdev-mcp Gateway Architecture
 
 ## Entity Model
 
@@ -13,7 +13,7 @@ erDiagram
     GATEWAY {
         string serverUrl "http://localhost:3333"
         string sessionId "sha256(serverUrl)[0:6]"
-        string logDir ".web-dev-mcp/"
+        string logDir ".webdev-mcp/"
         number startedAt "Date.now()"
         number checkpointTs "null | timestamp"
     }
@@ -21,7 +21,7 @@ erDiagram
     PROJECT {
         string projectId "basename-hash4 (e.g. vite-app-a3f7)"
         string directory "absolute path (identity)"
-        string logDir "directory/.web-dev-mcp/"
+        string logDir "directory/.webdev-mcp/"
     }
 
     SERVER {
@@ -32,7 +32,7 @@ erDiagram
         string key "optional user override"
         string name "optional display name"
         object logPaths "channel -> file path"
-        string logDir "absolute path to .web-dev-mcp/"
+        string logDir "absolute path to .webdev-mcp/"
     }
 
     ENDPOINT {
@@ -117,7 +117,7 @@ graph LR
         ADMIN_SSE["/__admin/events<br/>GET (SSE)"]
         MCP_SSE["/__mcp/sse<br/>GET (SSE)"]
         MCP_MSG["/__mcp/message<br/>POST (HTTP)"]
-        CLIENT_JS["/__web-dev-mcp.js<br/>GET (HTTP)"]
+        CLIENT_JS["/__webdev-mcp.js<br/>GET (HTTP)"]
     end
 
     subgraph "Browser Pages"
@@ -325,7 +325,7 @@ graph LR
 
 ### CDP Flow
 
-1. Extension detects dev pages via `<meta name="web-dev-mcp">` tag
+1. Extension detects dev pages via `<meta name="webdev-mcp">` tag
 2. Extension announces tabs to gateway via `tabAvailable` messages
 3. Agent calls `browser_debug({ action: "start" })` — gateway sends `requestDebug` to extension
 4. Extension attaches `chrome.debugger`, starts forwarding CDP events
@@ -348,7 +348,7 @@ graph LR
 
 Remote devices (phones on tailnet/LAN) need to reach the gateway. Two mechanisms:
 
-1. **Relative script loading** — Vite adapter loads `/__web-dev-mcp.js` from vite's own origin (relative URL), not from the absolute gateway URL. Vite serves it via middleware.
+1. **Relative script loading** — Vite adapter loads `/__webdev-mcp.js` from vite's own origin (relative URL), not from the absolute gateway URL. Vite serves it via middleware.
 
 2. **Hostname rewrite** — Client script detects when page hostname differs from injected gateway hostname. If page is on `100.67.86.117:5173` but gateway was injected as `localhost:3333`, client rewrites to `100.67.86.117:3333`.
 

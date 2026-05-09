@@ -1,6 +1,6 @@
 # @winstonfassett/webdev-nextjs
 
-Next.js adapter for [web-dev-mcp](https://github.com/WinstonFassett/web-dev-mcp) — live browser observability for AI agents during development.
+Next.js adapter for [webdev-mcp](https://github.com/WinstonFassett/webdev-mcp) — live browser observability for AI agents during development.
 
 ## Install
 

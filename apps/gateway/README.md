@@ -13,7 +13,7 @@ Works with **any** HTTP dev server: Next.js, Vite, Remix, Rails, Django, static 
 npm run dev  # → localhost:3000
 
 # Start the gateway
-npx web-dev-mcp --target http://localhost:3000
+npx webdev-mcp --target http://localhost:3000
 
 # Browse http://localhost:3333 (proxied + instrumented)
 # MCP endpoint: http://localhost:3333/__mcp/sse
@@ -63,7 +63,7 @@ Full toolset (23 tools): `/__mcp/sse?tools=full`
 ## CLI
 
 ```
-npx web-dev-mcp [options]
+npx webdev-mcp [options]
 
 Options:
   --target, -t <url>     Dev server URL to proxy

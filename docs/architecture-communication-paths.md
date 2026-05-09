@@ -1,4 +1,4 @@
-# web-dev-mcp Communication Architecture
+# webdev-mcp Communication Architecture
 
 ## Two Paths to the Browser
 

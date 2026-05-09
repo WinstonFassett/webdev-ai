@@ -1,6 +1,6 @@
 ---
 name: capnweb-browser
-description: "[DEPRECATED] capnweb RPC was removed from the gateway. Use eval_js MCP tool or the web-dev-mcp skill instead. This skill is retained for reference only."
+description: "[DEPRECATED] capnweb RPC was removed from the gateway. Use eval_js MCP tool or the webdev-mcp skill instead. This skill is retained for reference only."
 ---
 
 # capnweb Browser Access (Deprecated)
@@ -26,4 +26,4 @@ All browser interaction now goes through:
 
 Key difference: `document` and `window` are now real browser objects, not remote proxies. No `await` needed for property reads. Results that are objects must be explicitly serialized (`JSON.stringify`).
 
-See the `web-dev-mcp` skill for current usage.
+See the `webdev-mcp` skill for current usage.

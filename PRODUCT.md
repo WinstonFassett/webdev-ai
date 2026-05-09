@@ -10,7 +10,7 @@ Frontend developers working in AI-assisted coding workflows. The user runs one o
 
 ## Product Purpose
 
-web-dev-mcp admin is the human dashboard for the gateway — a partner tool for agent-assisted frontend development. The gateway gives agents access to real browsers running live dev servers. The admin surfaces the same state the agent has: connected browsers, log streams across multiple channels, build health, and REPL access. The shared view is the point — agents and humans see the same ground truth. Success looks like: open the admin, immediately know what's connected and whether anything is broken, drill to any log within two clicks.
+webdev-mcp admin is the human dashboard for the gateway — a partner tool for agent-assisted frontend development. The gateway gives agents access to real browsers running live dev servers. The admin surfaces the same state the agent has: connected browsers, log streams across multiple channels, build health, and REPL access. The shared view is the point — agents and humans see the same ground truth. Success looks like: open the admin, immediately know what's connected and whether anything is broken, drill to any log within two clicks.
 
 ## Brand Personality
 

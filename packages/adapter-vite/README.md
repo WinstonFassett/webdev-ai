@@ -1,6 +1,6 @@
 # @winstonfassett/webdev-vite
 
-Vite plugin for [web-dev-mcp](https://github.com/WinstonFassett/web-dev-mcp) — live browser observability for AI agents during development.
+Vite plugin for [webdev-mcp](https://github.com/WinstonFassett/webdev-mcp) — live browser observability for AI agents during development.
 
 ## Install
 

@@ -10,7 +10,7 @@ Shared adapter helpers exported at `./helpers` subpath.
 npm run build   # tsc && node build-client.mjs
 ```
 
-`build-client.mjs` bundles `src/client/index.ts` into `dist/webdev-client.js` (~60KB minified) using esbuild. This is the browser script injected into pages, served at `/__web-dev-mcp.js`.
+`build-client.mjs` bundles `src/client/index.ts` into `dist/webdev-client.js` (~60KB minified) using esbuild. This is the browser script injected into pages, served at `/__webdev-mcp.js`.
 
 ## Non-obvious
 
@@ -25,4 +25,4 @@ npm run build   # tsc && node build-client.mjs
 - `src/cdp-relay.ts` — CDP relay bridging Chrome extension ↔ Playwright. Handles Target/Runtime CDP messages locally, forwards everything else to extension. Extension connects at `/__cdp-extension`, Playwright at `/devtools/browser/*`.
 - `src/playwright-commands.ts` — Playwright implementations of MCP tool commands (screenshot, click, fill, etc.). `tryPlaywrightCommand()` returns result or `null` to fall back to RPC.
 - When Chrome extension is connected, full-toolset MCP commands (`screenshot`, `click`, `queryDom`, etc.) auto-use Playwright via CDP for pixel-perfect results. Transparent to the agent.
-- Adapters inject `<meta name="web-dev-mcp">` via JS (not static HTML) to support SSR frameworks (TanStack Start, etc.).
+- Adapters inject `<meta name="webdev-mcp">` via JS (not static HTML) to support SSR frameworks (TanStack Start, etc.).

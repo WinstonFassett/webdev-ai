@@ -1,6 +1,6 @@
 # @winstonfassett/webdev-astro
 
-Astro integration for [web-dev-mcp](https://github.com/WinstonFassett/web-dev-mcp) — live browser observability for AI agents during development.
+Astro integration for [webdev-mcp](https://github.com/WinstonFassett/webdev-mcp) — live browser observability for AI agents during development.
 
 ## Install
 
@@ -11,7 +11,7 @@ npm install -D @winstonfassett/webdev-astro @winstonfassett/webdev-gateway
 Or, in one step:
 
 ```bash
-npx web-dev-mcp init
+npx webdev-mcp init
 ```
 
 ## Astro
