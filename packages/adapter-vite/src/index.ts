@@ -32,6 +32,16 @@ export function webdev(options: ViteAdapterOptions = {}): Plugin {
     name: 'webdev',
     apply: 'serve',
 
+    config() {
+      return {
+        server: {
+          watch: {
+            ignored: ['**/.webdev/**'],
+          },
+        },
+      }
+    },
+
     configResolved(config) {
       resolvedConfig = config
       const serverType = options.serverType ?? 'vite'
