@@ -74,6 +74,8 @@ export default defineConfig({
 })
 ```
 
+If [`@vitejs/devtools`](https://devtools.vite.dev/) is also installed, the adapter auto-registers a `webdev-ai` panel and an element-picker action in the DevTools dock — just add `DevTools()` alongside `webdev()` in the plugins list. Optional peer; no runtime cost when not installed.
+
 ### Storybook (Vite-based)
 
 ```bash

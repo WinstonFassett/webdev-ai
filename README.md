@@ -113,6 +113,27 @@ export default defineConfig({
 })
 ```
 
+#### Vite DevTools dock (optional)
+
+![Vite DevTools dock — webdev-ai panel showing live logs](screenshots/vite-devtools-dock-webdev.png)
+
+If [`@vitejs/devtools`](https://devtools.vite.dev/) is installed in the same project, the adapter auto-registers two entries in the DevTools dock — no extra config:
+
+- **webdev-ai** — iframes the gateway admin UI, scoped to the current Vite server
+- **Element picker** — toggles the element grabber from the dock
+
+```ts
+// vite.config.ts
+import { DevTools } from '@vitejs/devtools'
+import { webdev } from '@winstonfassett/webdev-vite'
+
+export default defineConfig({
+  plugins: [react(), DevTools(), webdev()],
+})
+```
+
+`@vitejs/devtools` is an opt-in peer — if it's not installed, the dock hook is never called and there's zero runtime cost.
+
 ### Storybook
 
 ```ts
