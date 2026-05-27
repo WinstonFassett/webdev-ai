@@ -364,6 +364,9 @@ export function createToolbar(root: HTMLElement, callbacks: { ontoggle: () => vo
       pill.classList.toggle('active', v)
       dot.style.display = v ? '' : 'none'
     },
+    destroy() {
+      pill.remove()
+    },
   }
 }
 

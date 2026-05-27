@@ -128,6 +128,15 @@ export function webdev(options: ViteAdapterOptions = {}): Plugin {
           type: 'iframe',
           url: `${gatewayUrl}/__admin?${params.toString()}`,
         })
+        ctx.docks.register({
+          id: 'webdev-element-grab',
+          title: 'Element picker',
+          icon: 'ph:cursor-duotone',
+          type: 'action',
+          action: {
+            importFrom: '@winstonfassett/webdev-vite/devtools-element-grab',
+          },
+        })
       },
     },
   }

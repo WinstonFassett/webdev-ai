@@ -80,9 +80,24 @@ const init = () => {
     ondismiss: deactivate,
   })
 
-  toolbar = createToolbar(root, {
-    ontoggle: () => { if (active) deactivate(); else activate() },
-  })
+  // Skip the floating toolbar when @vitejs/devtools is hosting our dock entry —
+  // the dock icon replaces this UI and two of them feels redundant.
+  const hasViteDevtoolsDock = () =>
+    !!document.querySelector('vite-devtools-dock-embedded, vite-devtools-dock-standalone')
+  if (!hasViteDevtoolsDock()) {
+    toolbar = createToolbar(root, {
+      ontoggle: () => { if (active) deactivate(); else activate() },
+    })
+    // If the devtools dock mounts after us, remove the toolbar.
+    const mo = new MutationObserver(() => {
+      if (toolbar && hasViteDevtoolsDock()) {
+        toolbar.destroy()
+        toolbar = null
+        mo.disconnect()
+      }
+    })
+    mo.observe(document.documentElement, { childList: true, subtree: true })
+  }
 
   contextMenu = createContextMenu(root)
 

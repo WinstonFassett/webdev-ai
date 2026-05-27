@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./devtools-element-grab": {
+      "types": "./dist/devtools-element-grab.d.ts",
+      "import": "./dist/devtools-element-grab.js"
+    },
     "./storybook": {
       "types": "./dist/storybook/preset.d.ts",
       "import": "./dist/storybook/preset.js",
