@@ -32,6 +32,22 @@ export default {
 }
 ```
 
+## Vite DevTools dock
+
+If [`@vitejs/devtools`](https://devtools.vite.dev/) is installed in the host app, this plugin auto-registers a `webdev-ai` panel in the DevTools dock that iframes the gateway admin UI scoped to the current Vite server. No config needed:
+
+```ts
+// vite.config.ts
+import { DevTools } from '@vitejs/devtools'
+import { webdev } from '@winstonfassett/webdev-vite'
+
+export default defineConfig({
+  plugins: [DevTools(), webdev()],
+})
+```
+
+`@vitejs/devtools` is an opt-in peer dep. If not installed, the `devtools.setup` hook is never called — zero runtime cost.
+
 ## Options
 
 ```ts

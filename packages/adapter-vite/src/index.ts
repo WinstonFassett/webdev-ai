@@ -1,6 +1,7 @@
 // Vite adapter for webdev
 // Injects client code via Vite's transform hook, forwards HMR/build events to gateway
 
+/// <reference types="@vitejs/devtools-kit" />
 import type { Plugin, HotUpdateOptions, EnvironmentModuleNode, ResolvedConfig } from 'vite'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -114,6 +115,18 @@ export function webdev(options: ViteAdapterOptions = {}): Plugin {
           modules: opts.modules.map((m: EnvironmentModuleNode) => m.id ?? m.url),
         })
       }
+    },
+
+    devtools: {
+      setup(ctx) {
+        ctx.docks.register({
+          id: 'webdev-ai',
+          title: 'webdev-ai',
+          icon: 'ph:robot-duotone',
+          type: 'iframe',
+          url: `${gatewayUrl}/__admin`,
+        })
+      },
     },
   }
 }

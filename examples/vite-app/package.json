@@ -16,6 +16,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "^5.8.0",
     "vite": "^8.0.0",
+    "@vitejs/devtools": "^0.1.24",
     "@winstonfassett/webdev-gateway": "file:../../apps/gateway",
     "@winstonfassett/webdev-vite": "file:../../packages/adapter-vite"
   }
