@@ -17,6 +17,15 @@
   let registry = getRegistry()
   let replOpen = $state(false)
 
+  // Embed mode: when admin is loaded inside an external dock (e.g. @vitejs/devtools),
+  // the host passes ?embed=dock&server=<id>. Auto-scope to that server and hide the
+  // sidebar so the panel shows only the current project's context.
+  const embedParams = new URLSearchParams(location.search)
+  const embedMode = embedParams.get('embed') === 'dock'
+  const embedServerId = embedParams.get('server')
+  let sidebarOpen = $state(!embedMode)
+  let didAutoScope = false
+
   const paletteCallbacks = {
     onToggleTheme: () => { theme = toggleTheme(theme) },
     onToggleRepl: () => { replOpen = !replOpen },
@@ -37,6 +46,21 @@
   if (!location.hash || location.hash === '#' || location.hash === '#/') {
     location.hash = '#/gateway'
   }
+
+  // Auto-scope to ?server=<id> once registry hydrates (embed mode only).
+  $effect(() => {
+    if (didAutoScope || !embedServerId || !registry.hydrated) return
+    for (const p of registry.projects) {
+      const s = p.servers.find(srv => srv.id === embedServerId)
+      if (s) {
+        didAutoScope = true
+        const next: Route = { view: 'server', projectId: p.projectId, type: s.type, tab: 'overview' }
+        const h = routeToHash(next)
+        if (location.hash !== h) location.hash = h
+        return
+      }
+    }
+  })
 
   function onToggleTheme() {
     theme = toggleTheme(theme)
@@ -87,6 +111,19 @@
       {/if}
     </nav>
     <div class="flex items-center gap-2">
+      {#if embedMode}
+        <button
+          onclick={() => { sidebarOpen = !sidebarOpen }}
+          class="inline-flex items-center justify-center h-8 w-8 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          aria-label="Toggle sidebar"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+          </svg>
+        </button>
+      {/if}
       <button
         onclick={onToggleTheme}
         class="inline-flex items-center justify-center h-8 w-8 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -110,9 +147,11 @@
   <!-- Main area: sidebar + content -->
   <div class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-48 border-r border-border shrink-0 overflow-y-auto p-2">
-      <SidebarTree {registry} {route} />
-    </aside>
+    {#if sidebarOpen}
+      <aside class="w-48 border-r border-border shrink-0 overflow-y-auto p-2">
+        <SidebarTree {registry} {route} />
+      </aside>
+    {/if}
 
     <!-- Content -->
     <main class="flex-1 flex flex-col overflow-hidden relative">

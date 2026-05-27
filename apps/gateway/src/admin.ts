@@ -2,7 +2,7 @@
 // Serves built admin at /__admin and JSON API at /__admin/api
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, statSync } from 'node:fs'
 import { join, dirname, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getAllBrowsers, browserCommand } from './rpc-server.js'
@@ -33,10 +33,15 @@ function serveStatic(res: ServerResponse, filePath: string): boolean {
   let cached = fileCache.get(filePath)
   if (!cached) {
     if (!existsSync(filePath)) return false
-    const content = readFileSync(filePath)
-    const mime = MIME_TYPES[extname(filePath)] || 'application/octet-stream'
-    cached = { content, mime }
-    fileCache.set(filePath, cached)
+    try {
+      if (!statSync(filePath).isFile()) return false
+      const content = readFileSync(filePath)
+      const mime = MIME_TYPES[extname(filePath)] || 'application/octet-stream'
+      cached = { content, mime }
+      fileCache.set(filePath, cached)
+    } catch {
+      return false
+    }
   }
   res.writeHead(200, {
     'Content-Type': cached.mime,
@@ -188,8 +193,9 @@ export function handleAdmin(
     return true
   }
 
-  // Serve built admin UI
-  if (url === '/__admin' || url === '/__admin/') {
+  // Serve built admin UI (allow querystring, e.g. /__admin?server=...)
+  const adminPath = url.split('?')[0]
+  if (adminPath === '/__admin' || adminPath === '/__admin/') {
     const indexPath = join(ADMIN_DIR, 'index.html')
     if (serveStatic(res, indexPath)) return true
     // Fallback: admin not built yet

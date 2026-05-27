@@ -119,12 +119,14 @@ export function webdev(options: ViteAdapterOptions = {}): Plugin {
 
     devtools: {
       setup(ctx) {
+        const params = new URLSearchParams({ embed: 'dock' })
+        if (serverId) params.set('server', serverId)
         ctx.docks.register({
           id: 'webdev-ai',
           title: 'webdev-ai',
           icon: 'ph:robot-duotone',
           type: 'iframe',
-          url: `${gatewayUrl}/__admin`,
+          url: `${gatewayUrl}/__admin?${params.toString()}`,
         })
       },
     },
