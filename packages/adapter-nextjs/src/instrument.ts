@@ -2,7 +2,7 @@
  * Browser instrumentation for Next.js apps (webpack mode).
  * Loaded automatically via webpack entry injection from withWebDevMcp().
  *
- * For Turbopack, use <WebdevInit /> from '@winstonfassett/webdev-next/init' instead.
+ * For Turbopack, use <WebdevInit /> from '@winstonfassett/webdev-nextjs/init' instead.
  */
 if (typeof window !== 'undefined' && !(window as any).__WEBDEV_INSTRUMENT__) {
   ;(window as any).__WEBDEV_INSTRUMENT__ = true

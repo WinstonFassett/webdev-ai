@@ -10,12 +10,14 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build -w @winstonfassett/webdev-gateway && npm run build -w @winstonfassett/webdev-vite && npm run build -w @winstonfassett/webdev-astro && npm run build -w @winstonfassett/webdev-next && npm run build -w @winstonfassett/webdev-proxy",
+    "build": "npm run build -w @winstonfassett/webdev-gateway && npm run build -w @winstonfassett/webdev-vite && npm run build -w @winstonfassett/webdev-nextjs",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
-    "prepublish:check": "npm run gateway:build && npm pack --dry-run -w @winstonfassett/webdev-gateway && npm pack --dry-run -w @winstonfassett/webdev-vite && npm pack --dry-run -w @winstonfassett/webdev-astro && npm pack --dry-run -w @winstonfassett/webdev-next && npm pack --dry-run -w @winstonfassett/webdev-proxy",
-    "publish:all": "npm publish -w @winstonfassett/webdev-gateway && npm publish -w @winstonfassett/webdev-vite && npm publish -w @winstonfassett/webdev-astro && npm publish -w @winstonfassett/webdev-next && npm publish -w @winstonfassett/webdev-proxy",
+    "prepublish:check": "npm run gateway:build && npm pack --dry-run -w @winstonfassett/webdev-gateway && npm pack --dry-run -w @winstonfassett/webdev-vite && npm pack --dry-run -w @winstonfassett/webdev-nextjs",
+    "version:alpha": "npm version 0.1.0-alpha.0 --no-git-tag-version -w @winstonfassett/webdev-gateway -w @winstonfassett/webdev-vite -w @winstonfassett/webdev-nextjs",
+    "publish:alpha": "npm publish --tag alpha -w @winstonfassett/webdev-gateway && npm publish --tag alpha -w @winstonfassett/webdev-vite && npm publish --tag alpha -w @winstonfassett/webdev-nextjs",
+    "publish:all": "npm publish -w @winstonfassett/webdev-gateway && npm publish -w @winstonfassett/webdev-vite && npm publish -w @winstonfassett/webdev-nextjs",
     "gateway:build": "npm run build && npm --prefix apps/admin-svelte run build",
     "gateway:status": "lsof -iTCP:3333 -sTCP:LISTEN -P -n 2>/dev/null || echo 'gateway not running on 3333'",
     "gateway:stop": "kill $(lsof -tiTCP:3333 -sTCP:LISTEN) 2>/dev/null; sleep 1; echo 'stopped'",

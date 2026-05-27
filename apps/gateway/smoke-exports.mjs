@@ -21,15 +21,15 @@ assert(typeof preset === 'object', 'storybook preset should be an object')
 console.log('✓ Vite storybook preset (ESM) resolves')
 
 // Next.js adapter exports
-import { withWebdev } from '@winstonfassett/webdev-next'
+import { withWebdev } from '@winstonfassett/webdev-nextjs'
 assert(typeof withWebdev === 'function', 'withWebdev should be a function')
 console.log('✓ Next.js adapter main export resolves')
 
-import { WebDevMcpInit } from '@winstonfassett/webdev-next/init'
+import { WebDevMcpInit } from '@winstonfassett/webdev-nextjs/init'
 assert(typeof WebDevMcpInit === 'function', 'WebDevMcpInit should be a function')
 console.log('✓ Next.js init export resolves')
 
-import instrument from '@winstonfassett/webdev-next/instrument'
+import instrument from '@winstonfassett/webdev-nextjs/instrument'
 assert(typeof instrument === 'string' || typeof instrument === 'function', 'instrument should be a module')
 console.log('✓ Next.js instrument export resolves')
 

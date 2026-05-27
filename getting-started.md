@@ -108,12 +108,12 @@ export default defineConfig({
 ### Next.js (Webpack)
 
 ```bash
-npm install -D @winstonfassett/webdev-next @winstonfassett/webdev-gateway
+npm install -D @winstonfassett/webdev-nextjs @winstonfassett/webdev-gateway
 ```
 
 ```js
 // next.config.js
-import { withWebdev } from '@winstonfassett/webdev-next'
+import { withWebdev } from '@winstonfassett/webdev-nextjs'
 export default withWebdev({ /* your config */ })
 ```
 
@@ -125,7 +125,7 @@ Same install and config wrapper as above, plus one extra step — Turbopack can'
 
 ```tsx
 // app/layout.tsx
-import { WebdevInit } from '@winstonfassett/webdev-next/init'
+import { WebdevInit } from '@winstonfassett/webdev-nextjs/init'
 
 export default function RootLayout({ children }) {
   return (

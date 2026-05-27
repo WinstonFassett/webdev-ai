@@ -130,8 +130,8 @@ export function withWebdev(
 
           Object.keys(entries).forEach((key) => {
             const entry = entries[key]
-            if (Array.isArray(entry) && !entry.includes('@winstonfassett/webdev-next/instrument')) {
-              entries[key] = ['@winstonfassett/webdev-next/instrument', ...entry]
+            if (Array.isArray(entry) && !entry.includes('@winstonfassett/webdev-nextjs/instrument')) {
+              entries[key] = ['@winstonfassett/webdev-nextjs/instrument', ...entry]
             }
           })
 

@@ -4,7 +4,7 @@
  * Pre-built client component for Next.js Turbopack mode.
  *
  * Usage in app/layout.tsx:
- *   import { WebDevMcpInit } from '@winstonfassett/webdev-next/init'
+ *   import { WebDevMcpInit } from '@winstonfassett/webdev-nextjs/init'
  *   // <WebDevMcpInit /> in <body>
  *
  * Webpack mode doesn't need this — client.js is injected automatically via webpack entry.

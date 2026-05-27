@@ -146,12 +146,12 @@ export default {
 ### Next.js
 
 ```bash
-npm install -D @winstonfassett/webdev-next @winstonfassett/webdev-gateway
+npm install -D @winstonfassett/webdev-nextjs @winstonfassett/webdev-gateway
 ```
 
 ```js
 // next.config.js
-import { withWebdev } from '@winstonfassett/webdev-next'
+import { withWebdev } from '@winstonfassett/webdev-nextjs'
 
 export default withWebdev(nextConfig)
 ```
@@ -160,7 +160,7 @@ For Turbopack, also add the client component to your root layout:
 
 ```tsx
 // app/layout.tsx
-import { WebdevInit } from '@winstonfassett/webdev-next/init'
+import { WebdevInit } from '@winstonfassett/webdev-nextjs/init'
 // ... add <WebdevInit /> as a child of <body>
 ```
 

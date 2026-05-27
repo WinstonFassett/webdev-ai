@@ -1,9 +1,11 @@
 {
   "name": "@winstonfassett/webdev-vite",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.0",
   "description": "Vite plugin for webdev — live browser observability for AI agents",
   "type": "module",
-  "engines": { "node": ">=20.6.0" },
+  "engines": {
+    "node": ">=20.6.0"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -54,13 +56,15 @@
     "directory": "packages/adapter-vite"
   },
   "homepage": "https://github.com/WinstonFassett/webdev",
-  "bugs": { "url": "https://github.com/WinstonFassett/webdev/issues" },
+  "bugs": {
+    "url": "https://github.com/WinstonFassett/webdev/issues"
+  },
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "@winstonfassett/webdev-gateway": "^0.1.0"
+    "@winstonfassett/webdev-gateway": ">=0.1.0-alpha.0"
   },
   "peerDependencies": {
     "vite": ">=6.0.0",

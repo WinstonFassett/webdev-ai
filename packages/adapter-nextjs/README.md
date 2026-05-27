@@ -1,11 +1,11 @@
-# @winstonfassett/webdev-next
+# @winstonfassett/webdev-nextjs
 
 Next.js adapter for [webdev](https://github.com/WinstonFassett/webdev) — live browser observability for AI agents during development.
 
 ## Install
 
 ```bash
-npm install -D @winstonfassett/webdev-next @winstonfassett/webdev-gateway
+npm install -D @winstonfassett/webdev-nextjs @winstonfassett/webdev-gateway
 ```
 
 ## Webpack mode (Next.js 14+)
@@ -14,7 +14,7 @@ Fully automatic — client instrumentation is injected via webpack entry.
 
 ```js
 // next.config.js
-import { withWebdev } from '@winstonfassett/webdev-next'
+import { withWebdev } from '@winstonfassett/webdev-nextjs'
 
 export default withWebdev({
   // your Next.js config
@@ -31,7 +31,7 @@ Turbopack doesn't support webpack entry injection, so add the client component t
 
 ```js
 // next.config.js
-import { withWebdev } from '@winstonfassett/webdev-next'
+import { withWebdev } from '@winstonfassett/webdev-nextjs'
 
 export default withWebdev({
   turbopack: {},
@@ -40,7 +40,7 @@ export default withWebdev({
 
 ```tsx
 // app/layout.tsx
-import { WebDevMcpInit } from '@winstonfassett/webdev-next/init'
+import { WebDevMcpInit } from '@winstonfassett/webdev-nextjs/init'
 
 export default function RootLayout({ children }) {
   return (

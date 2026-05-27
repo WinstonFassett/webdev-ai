@@ -27,7 +27,7 @@ For deeper integration (auto-start, build events, HMR status), use a framework a
 |-----------|---------|-------|
 | Vite | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 2-line plugin |
 | Storybook | [`@winstonfassett/webdev-vite`](https://www.npmjs.com/package/@winstonfassett/webdev-vite) | 1-line addon |
-| Next.js | [`@winstonfassett/webdev-next`](https://www.npmjs.com/package/@winstonfassett/webdev-next) | 1-line config wrapper |
+| Next.js | [`@winstonfassett/webdev-nextjs`](https://www.npmjs.com/package/@winstonfassett/webdev-nextjs) | 1-line config wrapper |
 
 Adapters auto-start the gateway — no separate terminal needed.
 
