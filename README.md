@@ -27,7 +27,7 @@ Four steps. See **[setup.md](setup.md)** for the full guide.
 |------|------|
 | 1 | Install the gateway: `npm install -g @winstonfassett/webdev-gateway` |
 | 2 | Wire the adapter for your framework (Vite, Next.js, Astro, Storybook, or script tag) |
-| 3 | Register the MCP server with your agent: `npx @winstonfassett/webdev-gateway --auto-register` |
+| 3 | Register the MCP server with your agent: `npx @winstonfassett/webdev-gateway register --global` |
 | 4 | Add the skill (Claude Code only): `npx skills add WinstonFassett/webdev --all` |
 
 Start your dev server, open your app in a browser, and your agent has browser access.

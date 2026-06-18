@@ -1,28 +1,35 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
+import { execSync } from 'node:child_process'
 import { applyEdits, modify, parse, parseTree, type FormattingOptions } from 'jsonc-parser'
 
 interface AgentConfig {
   relPath: string
   /** JSON key that holds the server map — VS Code uses "servers", others use "mcpServers" */
   serversKey: string
+  /** Detection dir relative to home — used to check if agent is installed */
+  detectDir: string
+  /** Human-readable label */
+  label: string
 }
 
 /** Project-level config paths (relative to cwd) */
-const PROJECT_AGENTS: Record<string, AgentConfig> = {
+const PROJECT_AGENTS: Record<string, { relPath: string; serversKey: string }> = {
   claude:   { relPath: '.mcp.json',           serversKey: 'mcpServers' },
   cursor:   { relPath: '.cursor/mcp.json',    serversKey: 'mcpServers' },
   windsurf: { relPath: '.windsurf/mcp.json',  serversKey: 'mcpServers' },
   vscode:   { relPath: '.vscode/mcp.json',    serversKey: 'servers' },
 }
 
-/** Global/user-level config paths (relative to home dir) */
-const GLOBAL_AGENTS: Record<string, AgentConfig> = {
-  claude:   { relPath: '.claude/settings.json', serversKey: 'mcpServers' },
-  cursor:   { relPath: '.cursor/mcp.json',      serversKey: 'mcpServers' },
-  windsurf: { relPath: '.windsurf/mcp.json',    serversKey: 'mcpServers' },
+/** Global/user-level config — detectDir is used to check if the agent is installed */
+export const GLOBAL_AGENTS: Record<string, AgentConfig> = {
+  claude:   { relPath: '.claude/settings.json', serversKey: 'mcpServers', detectDir: '.claude',   label: 'Claude Code' },
+  cursor:   { relPath: '.cursor/mcp.json',      serversKey: 'mcpServers', detectDir: '.cursor',   label: 'Cursor' },
+  windsurf: { relPath: '.windsurf/mcp.json',    serversKey: 'mcpServers', detectDir: '.windsurf', label: 'Windsurf' },
 }
+
+export type AgentId = keyof typeof GLOBAL_AGENTS
 
 /** Optional callbacks for surfacing non-fatal events during auto-register */
 export interface AutoRegisterReporter {
@@ -132,21 +139,60 @@ export function autoRegister(cwd: string, mcpUrl: string, reporter?: AutoRegiste
   return registered
 }
 
-/** Register MCP in global/user-level config files */
-export function autoRegisterGlobal(mcpUrl: string, reporter?: AutoRegisterReporter): string[] {
+/** Returns which global agents are installed (their config dirs exist under ~/) */
+export function detectInstalledAgents(): AgentId[] {
   const home = homedir()
-  const registered: string[] = []
+  return (Object.keys(GLOBAL_AGENTS) as AgentId[]).filter(
+    (id) => existsSync(join(home, GLOBAL_AGENTS[id].detectDir))
+  )
+}
 
-  for (const [_agent, { relPath, serversKey }] of Object.entries(GLOBAL_AGENTS)) {
+export interface GlobalRegisterResult {
+  agent: AgentId
+  label: string
+  ok: boolean
+  path: string
+  error?: string
+}
+
+/** Register MCP with a specific set of global agents */
+export function registerGlobalAgents(agents: AgentId[], mcpUrl: string, reporter?: AutoRegisterReporter): GlobalRegisterResult[] {
+  const home = homedir()
+  const results: GlobalRegisterResult[] = []
+
+  for (const id of agents) {
+    const { relPath, serversKey, label } = GLOBAL_AGENTS[id]
     const filePath = join(home, relPath)
-    // Only write to global configs that already exist (don't create dirs for tools the user doesn't have)
-    if (!existsSync(dirname(filePath))) continue
-    if (upsertMcpServer(filePath, serversKey, mcpUrl, reporter)) {
-      registered.push(`~/${relPath}`)
+
+    if (id === 'claude') {
+      // Use claude CLI so the server is trusted, not just written to settings.json
+      try {
+        execSync(`claude mcp add -s user --transport sse webdev ${mcpUrl}`, { stdio: 'pipe' })
+        results.push({ agent: id, label, ok: true, path: `~/${relPath}` })
+      } catch (err) {
+        const msg = (err as Error).message ?? String(err)
+        // If already registered, that's fine
+        if (msg.includes('already exists') || msg.includes('already registered')) {
+          results.push({ agent: id, label, ok: true, path: `~/${relPath}` })
+        } else {
+          results.push({ agent: id, label, ok: false, path: `~/${relPath}`, error: msg })
+        }
+      }
+      continue
     }
+
+    const ok = upsertMcpServer(filePath, serversKey, mcpUrl, reporter)
+    results.push({ agent: id, label, ok, path: `~/${relPath}` })
   }
 
-  return registered
+  return results
+}
+
+/** @deprecated Use registerGlobalAgents() with explicit agent list */
+export function autoRegisterGlobal(mcpUrl: string, reporter?: AutoRegisterReporter): string[] {
+  const installed = detectInstalledAgents()
+  const results = registerGlobalAgents(installed, mcpUrl, reporter)
+  return results.filter(r => r.ok).map(r => r.path)
 }
 
 /** Add an entry to .gitignore if not already present */

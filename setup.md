@@ -136,17 +136,32 @@ No adapter needed. For frameworks without a dedicated adapter (Remix, SvelteKit 
 
 The MCP server is an SSE endpoint on the gateway. You need to register it with each AI agent/IDE that should have browser access.
 
-### Auto-register (all agents at once)
+### Global registration (recommended — do this once)
 
 ```bash
-npx @winstonfassett/webdev-gateway --auto-register
+npx @winstonfassett/webdev-gateway register --global
 ```
 
-This writes the MCP config into all four locations:
-- `.mcp.json` (Claude Code)
-- `.cursor/mcp.json` (Cursor)
-- `.windsurf/mcp.json` (Windsurf)
-- `.vscode/mcp.json` (VS Code / Copilot)
+Detects which agents are installed and asks which ones to register with. Works across all your projects — no per-project setup needed.
+
+To skip the prompt:
+
+```bash
+npx @winstonfassett/webdev-gateway register --global --agents claude
+npx @winstonfassett/webdev-gateway register --global --agents claude,cursor
+```
+
+Supported agent IDs: `claude`, `cursor`, `windsurf`.
+
+### Project-level registration
+
+If you prefer per-project MCP config (checked into the repo):
+
+```bash
+npx @winstonfassett/webdev-gateway register
+```
+
+Writes `.mcp.json`, `.cursor/mcp.json`, `.windsurf/mcp.json`, and `.vscode/mcp.json` in the current directory.
 
 ### Manual registration
 
@@ -254,7 +269,7 @@ This installs the `webdev` skill which covers:
 | MCP endpoint | `http://localhost:3333/__mcp/sse` |
 | Full toolset (23 tools) | `http://localhost:3333/__mcp/sse?tools=full` |
 | Admin UI | `http://localhost:3333` |
-| Auto-register MCP | `npx @winstonfassett/webdev-gateway --auto-register` |
+| Register MCP globally | `npx @winstonfassett/webdev-gateway register --global` |
 | Network capture | `webdev --network` |
 
 ## Compatibility
