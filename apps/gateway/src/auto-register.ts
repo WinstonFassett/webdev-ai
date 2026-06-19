@@ -165,17 +165,19 @@ export function registerGlobalAgents(agents: AgentId[], mcpUrl: string, reporter
     const filePath = join(home, relPath)
 
     if (id === 'claude') {
-      // Use claude CLI so the server is trusted, not just written to settings.json
+      // Use claude CLI so the server is trusted, not just written to settings.json.
+      // `claude mcp add -s user` stores the entry in ~/.claude.json, not relPath.
+      const claudePath = '~/.claude.json (user scope)'
       try {
         execSync(`claude mcp add -s user --transport sse webdev ${mcpUrl}`, { stdio: 'pipe' })
-        results.push({ agent: id, label, ok: true, path: `~/${relPath}` })
+        results.push({ agent: id, label, ok: true, path: claudePath })
       } catch (err) {
         const msg = (err as Error).message ?? String(err)
         // If already registered, that's fine
         if (msg.includes('already exists') || msg.includes('already registered')) {
-          results.push({ agent: id, label, ok: true, path: `~/${relPath}` })
+          results.push({ agent: id, label, ok: true, path: claudePath })
         } else {
-          results.push({ agent: id, label, ok: false, path: `~/${relPath}`, error: msg })
+          results.push({ agent: id, label, ok: false, path: claudePath, error: msg })
         }
       }
       continue
