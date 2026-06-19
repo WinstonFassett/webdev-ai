@@ -1,6 +1,6 @@
 {
   "name": "@winstonfassett/webdev-nextjs",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.1",
   "description": "Next.js adapter for webdev — live browser observability for AI agents",
   "type": "module",
   "engines": {
