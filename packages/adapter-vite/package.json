@@ -52,7 +52,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WinstonFassett/webdev.git",
+    "url": "git+https://github.com/WinstonFassett/webdev-ai.git",
     "directory": "packages/adapter-vite"
   },
   "homepage": "https://github.com/WinstonFassett/webdev",

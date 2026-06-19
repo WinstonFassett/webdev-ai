@@ -43,7 +43,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WinstonFassett/webdev.git",
+    "url": "git+https://github.com/WinstonFassett/webdev-ai.git",
     "directory": "apps/gateway"
   },
   "homepage": "https://github.com/WinstonFassett/webdev",

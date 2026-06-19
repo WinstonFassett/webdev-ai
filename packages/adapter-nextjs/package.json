@@ -41,7 +41,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WinstonFassett/webdev.git",
+    "url": "git+https://github.com/WinstonFassett/webdev-ai.git",
     "directory": "packages/adapter-nextjs"
   },
   "homepage": "https://github.com/WinstonFassett/webdev",
