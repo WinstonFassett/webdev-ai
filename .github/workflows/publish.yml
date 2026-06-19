@@ -41,14 +41,14 @@ jobs:
       - name: Publish gateway
         run: npm publish -w @winstonfassett/webdev-gateway --tag ${{ steps.tag.outputs.dist_tag }} --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish vite adapter
         run: npm publish -w @winstonfassett/webdev-vite --tag ${{ steps.tag.outputs.dist_tag }} --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish nextjs adapter
         run: npm publish -w @winstonfassett/webdev-nextjs --tag ${{ steps.tag.outputs.dist_tag }} --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
