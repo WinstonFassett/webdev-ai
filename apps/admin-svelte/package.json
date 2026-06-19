@@ -23,8 +23,8 @@
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/theme-one-dark": "^6.1.3",
-    "@winstonfassett/webdev-gateway": "^0.1.0",
-    "@winstonfassett/webdev-vite": "^0.1.0",
+    "@winstonfassett/webdev-gateway": ">=0.1.0-alpha.0",
+    "@winstonfassett/webdev-vite": ">=0.1.0-alpha.0",
     "capnweb": "^0.6.1",
     "codemirror": "^6.0.2",
     "partysocket": "^1.1.16",

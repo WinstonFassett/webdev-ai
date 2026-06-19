@@ -18,6 +18,9 @@
     "version:alpha": "npm version 0.1.0-alpha.0 --no-git-tag-version -w @winstonfassett/webdev-gateway -w @winstonfassett/webdev-vite -w @winstonfassett/webdev-nextjs",
     "publish:alpha": "npm publish --tag alpha -w @winstonfassett/webdev-gateway && npm publish --tag alpha -w @winstonfassett/webdev-vite && npm publish --tag alpha -w @winstonfassett/webdev-nextjs",
     "publish:all": "npm publish -w @winstonfassett/webdev-gateway && npm publish -w @winstonfassett/webdev-vite && npm publish -w @winstonfassett/webdev-nextjs",
+    "bump:alpha": "bumpp --preid alpha --no-push apps/gateway/package.json packages/adapter-vite/package.json packages/adapter-nextjs/package.json",
+    "release:alpha": "npm run prepublish:check && npm run bump:alpha && npm run publish:alpha",
+    "release": "npm run prepublish:check && bumpp apps/gateway/package.json packages/adapter-vite/package.json packages/adapter-nextjs/package.json && npm run publish:all",
     "gateway:build": "npm run build && npm --prefix apps/admin-svelte run build",
     "gateway:status": "lsof -iTCP:3333 -sTCP:LISTEN -P -n 2>/dev/null || echo 'gateway not running on 3333'",
     "gateway:stop": "kill $(lsof -tiTCP:3333 -sTCP:LISTEN) 2>/dev/null; sleep 1; echo 'stopped'",
@@ -27,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "bumpp": "^11.1.0",
     "playwright": "^1.58.2",
     "typescript": "^5.8.0"
   },

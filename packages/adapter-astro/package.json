@@ -39,8 +39,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@winstonfassett/webdev-gateway": "^0.1.0",
-    "@winstonfassett/webdev-vite": "^0.1.0"
+    "@winstonfassett/webdev-gateway": ">=0.1.0-alpha.0",
+    "@winstonfassett/webdev-vite": ">=0.1.0-alpha.0"
   },
   "peerDependencies": {
     "astro": ">=5.0.0"
