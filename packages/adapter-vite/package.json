@@ -1,6 +1,6 @@
 {
   "name": "@winstonfassett/webdev-vite",
-  "version": "0.1.1-alpha.2",
+  "version": "0.1.1",
   "description": "Vite plugin for webdev — live browser observability for AI agents",
   "type": "module",
   "engines": {
