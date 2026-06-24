@@ -1,16 +1,16 @@
 ---
 name: webdev
 
-description: Live USER browser observability and control for frontend development. Use when testing UI changes, debugging console errors, checking HMR status, taking screenshots, clicking elements, filling forms, or reading page content during local development. Does not replace playwright or webapp-testing skill. This is for pairing and requires user participation.
+description: Only invoke when the user or a project instruction file explicitly names "webdev" — not because the task involves a browser, screenshots, or dev tools. Do not infer this from capability match. Requires the developer's own gateway and dev server to already be running.
 ---
 
 # webdev
 
 Controls an already-open browser tab during development. MCP server at `/__mcp/sse`.
 
-## Installation
+## Installation (owner must approve)
 
-Before using this skill, install webdev in your project:
+To add webdev to a project:
 
 ```bash
 npx webdev init
@@ -106,16 +106,13 @@ return document.querySelector('#main-content').innerHTML
 
 **Find source code for an element by its text:**
 ```js
-// User says: "the element that says 'Total: $NaN' is broken"
 const info = await browser.elementSource('text=Total: $NaN')
 // → { componentName: "OrderSummary", source: { filePath: "/src/checkout/OrderSummary.tsx", lineNumber: 43 } }
-// Agent opens that file at line 43 and fixes it — no grepping through the codebase.
 
 // Also works with CSS selectors:
 const info2 = await browser.elementSource('.price-widget .total')
 
 // Requires element-source in the app (npm install element-source).
-// See examples/vite-app/src/main.tsx for setup (2 lines).
 ```
 
 **Click by text:**
@@ -137,14 +134,7 @@ const toast = await browser.waitFor('.success-toast', 100, 5000)
 return toast.textContent
 ```
 
-**DOM traversal chain:**
-```js
-const link = document.querySelector('a[href*="doom"]')
-const row = link.closest('tr').nextElementSibling
-return row.querySelector('a:last-child').href
-```
-
-**Hold a ref across calls (stores, globals):**
+**Hold a ref across calls:**
 ```js
 // Call 1: store a ref
 state.store = window.__REDUX_STORE__
@@ -156,20 +146,11 @@ return JSON.stringify(state.store.getState())
 
 ## Monitoring logs
 
-**Tail NDJSON files** (coding agents with terminal):
+**Tail NDJSON files:**
 ```bash
-tail -f .webdev/console.ndjson              # all console events
-tail -f .webdev/console.ndjson | jq .        # pretty-print
-tail -f .webdev/errors.ndjson                # errors only
+tail -f .webdev/console.ndjson
+tail -f .webdev/errors.ndjson
 ```
-Log paths are in `.webdev/` (gateway) or `.vite-mcp/` (vite standalone). Each line is `{"id":N,"ts":N,"channel":"...","payload":{...,"browserId":"..."}}`.
-
-**SSE stream** (dashboards, web UIs):
-```
-GET /__admin/events                              # all events
-GET /__admin/events?browser_id=abc123            # filtered by browser
-```
-Streams `event: log`, `event: browser_connect`, `event: browser_disconnect`.
 
 **Admin UI** (`/__admin`): visual dashboard with real-time log viewer, browser list, REPL.
 
@@ -177,5 +158,4 @@ Streams `event: log`, `event: browser_connect`, `event: browser_disconnect`.
 
 - `browser.navigate()` disconnects — wait ~2-3s before next call. For SPA route changes, prefer `browser.click('text=Settings')` on a nav element.
 - `browser.screenshot()` returns JSON with base64 data, not MCP image content type.
-- `state` persists within a browser session. Page reload clears it. Store refs that survive HMR, but re-query after full navigation.
-
+- `state` persists within a browser session. Page reload clears it.
