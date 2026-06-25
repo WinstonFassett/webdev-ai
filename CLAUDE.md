@@ -27,6 +27,7 @@ Agents: do this yourself — don't tell the user to "restart the gateway." After
 - `apps/gateway/` — Core gateway (`@winstonfassett/webdev-gateway`). Has its own [CLAUDE.md](apps/gateway/CLAUDE.md).
 - `packages/adapter-vite/` — Vite plugin + Storybook preset (`@winstonfassett/webdev-vite`).
 - `packages/adapter-nextjs/` — Next.js adapter (`@winstonfassett/webdev-nextjs`).
+- `packages/adapter-astro/` — Astro integration (`@winstonfassett/webdev-astro`). Not yet in publish scripts.
 - `apps/extension/` — Chrome extension for CDP auto-attach (sideload via `chrome://extensions`).
 - `packages/proxy/` — Dynamic proxy plugin (not published yet).
 - `apps/admin-svelte/` — Admin UI (builds into gateway dist)
